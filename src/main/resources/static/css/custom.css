@@ -1,0 +1,35 @@
+/* Custom CSS - Hiển thị dropdown menu khi đưa chuột tới */
+.main-menu li.has-list:hover .navmwg,
+.main-menu li.has-list:hover .navmwg.sf-hidden {
+    display: grid !important;
+}
+/* Căn dropdown ra giữa dưới menu item */
+.main-menu li.has-list .navmwg {
+    left: 50% !important;
+    transform: translateX(-50%);
+}
+.my-menu-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr; /* 1 hàng 2 category cha */
+    gap:20px;
+}
+
+.my-category-title{
+    font-weight:bold;
+    margin-bottom:8px;
+}
+
+.my-sub-list{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+}
+
+.my-sub-item{
+    text-align:center;
+    font-size:12px;
+}
+
+.my-sub-item img{
+    width:40px;
+}
