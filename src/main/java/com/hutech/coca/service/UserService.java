@@ -1,82 +1,56 @@
 package com.hutech.coca.service;
+
 import com.hutech.coca.Role;
 import com.hutech.coca.model.User;
 import com.hutech.coca.repository.IRoleRepository;
 import com.hutech.coca.repository.IUserRepository;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.validation.constraints.NotNull;
-
 import java.util.HashSet;
 import java.util.Optional;
 
 @Service
-@Slf4j
-@Transactional
+@RequiredArgsConstructor
 public class UserService implements UserDetailsService {
 
-    @Autowired
-    private IUserRepository userRepository;
-    @Autowired
-    private IRoleRepository roleRepository;
+    private final IUserRepository userRepository;
+    private final IRoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    // Lưu người dùng mới vào cơ sở dữ liệu sau khi mã hóa mật khẩu.
-    public void save(@NotNull User user) {
+    @Transactional
+    public void registerNewUser(User user) {
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             throw new RuntimeException("Tên đăng nhập đã tồn tại!");
-        }else {
-
         }
-        user.setPassword(new BCryptPasswordEncoder().encode(user.getPassword()));
+        if (userRepository.findByPhone(user.getPhone()).isPresent()) {
+            throw new RuntimeException("SDT đã tồn tại!");
+        }
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new RuntimeException("Email đã tồn tại!");
+        }
+        // Mã hóa mật khẩu
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+
+        // Khởi tạo roles tránh NullPointerException
+        if (user.getRoles() == null) user.setRoles(new HashSet<>());
+
+        // Gán Role mặc định (USER)
+        var defaultRole = roleRepository.findRoleById(Role.USER.value);
+        user.getRoles().add(defaultRole);
+
         userRepository.save(user);
     }
 
-    // Gán vai trò mặc định cho người dùng dựa trên tên người dùng.
-    public void setDefaultRole(String username) {
-        userRepository.findByUsername(username).ifPresentOrElse(
-                user -> {
-                    if (user.getRoles() == null) {
-                        user.setRoles(new HashSet<>());
-                    }
-
-                    var role = roleRepository.findRoleById(Role.USER.value);
-                    if (role != null) {
-                        user.getRoles().add(role);
-                        userRepository.save(user);
-                    } else {
-                        log.error("Role USER không tồn tại trong Database!");
-                    }
-                },
-                () -> { throw new UsernameNotFoundException("User not found"); }
-        );
-    }
-
     @Override
-    public UserDetails loadUserByUsername(String username) throws
-            UsernameNotFoundException {
-        var user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getUsername())
-                .password(user.getPassword())
-                .authorities(user.getAuthorities())
-                .accountExpired(!user.isAccountNonExpired())
-                .accountLocked(!user.isAccountNonLocked())
-                .credentialsExpired(!user.isCredentialsNonExpired())
-                .disabled(!user.isEnabled())
-                .build();
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng"));
     }
 
-    // Tìm kiếm người dùng dựa trên tên đăng nhập.
-    public Optional<User> findByUsername(String username) throws
-            UsernameNotFoundException {
+    public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 }
-

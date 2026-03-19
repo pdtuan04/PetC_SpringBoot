@@ -3,13 +3,10 @@ package com.hutech.coca.controller;
 import com.hutech.coca.model.User;
 import com.hutech.coca.service.UserService;
 import com.hutech.coca.utils.JwtUtils;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Map;
 
 @RestController
@@ -23,28 +20,28 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody User user) {
+    public ResponseEntity<?> register(@RequestBody User user) {
         try {
-            userService.save(user);
-            userService.setDefaultRole(user.getUsername());
+            userService.registerNewUser(user);
             return ResponseEntity.ok(Map.of("message", "Đăng ký thành công!"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Đăng ký thất bại: " + e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) {
-        String username = loginRequest.get("username");
-        String password = loginRequest.get("password");
+    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String password = request.get("password");
 
-        // Tìm user và kiểm tra mật khẩu
         return userService.findByUsername(username)
                 .filter(user -> passwordEncoder.matches(password, user.getPassword()))
                 .map(user -> {
-                    String token = jwtUtils.generateToken(user.getUsername());
+                    // Truyền cả quyền hạn vào Token
+                    String token = jwtUtils.generateToken(user.getUsername(), user.getAuthorities());
                     return ResponseEntity.ok(Map.of(
                             "token", token,
+                            "id", user.getId(),
                             "username", user.getUsername(),
                             "roles", user.getRoles().stream().map(r -> r.getName()).toList()
                     ));

@@ -18,11 +18,9 @@ import org.springframework.security.web.SecurityFilterChain;
 @RequiredArgsConstructor // Lombok tự động tạo constructor có tham số cho tất cả các trường final.
 public class SecurityConfig {
 
-    private final UserService userService; // Tiêm UserService vào lớp cấu hình này.
-
-    @Bean // Đánh dấu phương thức trả về một bean được quản lý bởi Spring Context.
-    public UserDetailsService userDetailsService() {
-        return new UserService(); // Cung cấp dịch vụ xử lý chi tiết người dùng.
+    @Bean
+    public UserDetailsService userDetailsService(UserService userService) {
+        return userService;
     }
 
     @Bean
@@ -31,11 +29,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        var auth = new DaoAuthenticationProvider(userDetailsService()); // Tạo nhà cung cấp xác thực.
-//        auth.setUserDetailsService(userDetailsService()); // Thiết lập dịch vụ chi tiết người dùng.
-        auth.setPasswordEncoder(passwordEncoder()); // Thiết lập cơ chế mã hóa mật khẩu.
-        return auth; // Trả về nhà cung cấp xác thực.
+    public DaoAuthenticationProvider authenticationProvider(UserDetailsService userDetailsService) {
+        DaoAuthenticationProvider auth = new DaoAuthenticationProvider(userDetailsService);
+        auth.setPasswordEncoder(passwordEncoder());
+        return auth;
     }
 
     @Bean
@@ -66,12 +63,6 @@ public class SecurityConfig {
                         .defaultSuccessUrl("/") // Trang sau đăng nhập thành công.
                         .failureUrl("/login?error") // Trang đăng nhập thất bại.
                         .permitAll()
-                )
-                .rememberMe(rememberMe -> rememberMe
-                        .key("hutech")
-                        .rememberMeCookieName("hutech")
-                        .tokenValiditySeconds(24 * 60 * 60) // Thời gian nhớ đăng nhập.
-                        .userDetailsService(userDetailsService())
                 )
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .accessDeniedPage("/403") // Trang báo lỗi khi truy cập không được phép.
