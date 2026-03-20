@@ -5,10 +5,13 @@ import com.hutech.coca.model.User;
 import com.hutech.coca.repository.IRoleRepository;
 import com.hutech.coca.repository.IUserRepository;
 import lombok.RequiredArgsConstructor;
+import org.jobrunr.scheduling.JobScheduler;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Optional;
 
@@ -19,7 +22,8 @@ public class UserService implements UserDetailsService {
     private final IUserRepository userRepository;
     private final IRoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-
+    private final JobScheduler jobScheduler;
+    private final EmailService emailService;
     @Transactional
     public void registerNewUser(User user) {
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
@@ -42,6 +46,7 @@ public class UserService implements UserDetailsService {
         user.getRoles().add(defaultRole);
 
         userRepository.save(user);
+        jobScheduler.enqueue(() -> emailService.sendWelcome(user.getEmail(),user.getUsername()));
     }
 
     @Override

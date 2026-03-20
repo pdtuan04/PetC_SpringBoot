@@ -19,6 +19,7 @@ public class AuthController {
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
 
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
         try {
