@@ -12,6 +12,13 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+// CÁC IMPORT CORS ĐÚNG (Xóa sạch các dòng có chữ .reactive)
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration // Đánh dấu lớp này là một lớp cấu hình cho Spring Context.
 @EnableWebSecurity // Kích hoạt tính năng bảo mật web của Spring Security.
@@ -34,10 +41,30 @@ public class SecurityConfig {
         auth.setPasswordEncoder(passwordEncoder());
         return auth;
     }
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
 
+        // KHÔNG dùng: configuration.setAllowedOrigins(List.of("*"));
+
+        // NÊN dùng: Chỉ định đích danh địa chỉ Frontend React của bạn
+        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+
+        // HOẶC dùng Pattern nếu bạn có nhiều cổng localhost khác nhau:
+        // configuration.setAllowedOriginPatterns(List.of("http://localhost:*"));
+
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
     @Bean
     public SecurityFilterChain securityFilterChain(@NotNull HttpSecurity http) throws Exception {
         return http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/", "/oauth/**", "/register", "/error",
