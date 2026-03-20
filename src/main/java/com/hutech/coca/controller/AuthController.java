@@ -3,6 +3,8 @@ package com.hutech.coca.controller;
 import com.hutech.coca.model.User;
 import com.hutech.coca.service.UserService;
 import com.hutech.coca.utils.JwtUtils;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,7 +14,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class AuthController {
 
     private final UserService userService;
@@ -31,7 +32,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> request, HttpServletResponse response) {
         String username = request.get("username");
         String password = request.get("password");
 
@@ -40,6 +41,13 @@ public class AuthController {
                 .map(user -> {
                     // Truyền cả quyền hạn vào Token
                     String token = jwtUtils.generateToken(user.getUsername(), user.getAuthorities());
+                    Cookie jwtCookie = new Cookie("jwt", token);
+                    jwtCookie.setHttpOnly(true);     // Bảo mật: JS không đọc được
+                    jwtCookie.setSecure(false);       // Đặt là true nếu dùng HTTPS
+                    jwtCookie.setPath("/");          // Cookie có hiệu lực toàn trang
+                    jwtCookie.setMaxAge(24 * 60 * 60); // Hết hạn sau 1 ngày (giây)
+
+                    response.addCookie(jwtCookie);
                     return ResponseEntity.ok(Map.of(
                             "token", token,
                             "id", user.getId(),
