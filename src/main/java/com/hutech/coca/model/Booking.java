@@ -54,4 +54,11 @@ public class Booking {
     private List<BookingDetail> bookingDetails;
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
+    @Column(name = "create_at", updatable = false)
+    private LocalDateTime createAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createAt = LocalDateTime.now();
+    }
 }
