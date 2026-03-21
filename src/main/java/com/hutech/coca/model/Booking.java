@@ -30,7 +30,7 @@ public class Booking {
     private LocalDateTime expectedEndTime;
 
     @Min(value = 0, message = "Tổng tiền không được âm")
-    private double totalPrice;
+    private Double totalPrice;
 
     private String notes;
 
