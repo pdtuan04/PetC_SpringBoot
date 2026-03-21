@@ -12,7 +12,7 @@ import java.util.Optional;
 @Repository
 public interface IBookingRepository extends JpaRepository<Booking, Long> {
     // Tìm Booking trong khoảng thời gian (Dùng cho check trùng lịch và xem tuần)
-    List<Booking> findByScheduledAtGreaterThanEqualAndScheduledAtLessThan(LocalDateTime startTime, LocalDateTime endTime);
+    List<Booking> findByScheduledAtGreaterThanEqualAndScheduledAtLessThanAndIsDeletedFalse(LocalDateTime startTime, LocalDateTime endTime);
 
     // Lấy danh sách Booking của 1 User
     List<Booking> findByUserId(Long userId);

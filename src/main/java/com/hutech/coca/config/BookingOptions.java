@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.booking")
 public class BookingOptions {
     private int maxBookingsPerSlot = 3;
-    private int openingHour = 8;
-    private int closingHour = 20;
+    private int openingHour = 9;
+    private int closingHour = 18;
     private int slotDurationMinutes = 30;
     private int holdMinutes = 10;
 }

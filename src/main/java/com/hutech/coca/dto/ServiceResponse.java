@@ -5,8 +5,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ServiceInBookingResponse {
+public class ServiceResponse {
     private Long id;
     private String name;
+    private String description;
     private double price;
+    private int durationInMinutes;
 }

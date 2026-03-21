@@ -26,17 +26,15 @@ public class Pet {
 
     @Min(value = 0, message = "Tuổi không được âm")
     private int age;
-
+    private String imageUrl;
     @NotNull(message = "Phải có chủ sở hữu (User)")
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
-
     @NotNull(message = "Phải chọn loại thú cưng")
     @ManyToOne
     @JoinColumn(name = "pet_type_id")
     private PetType petType;
-
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
 }

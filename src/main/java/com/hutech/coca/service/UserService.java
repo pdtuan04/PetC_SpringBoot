@@ -1,6 +1,7 @@
 package com.hutech.coca.service;
 
 import com.hutech.coca.common.Role;
+import com.hutech.coca.dto.UserSummaryResponse;
 import com.hutech.coca.model.User;
 import com.hutech.coca.repository.IRoleRepository;
 import com.hutech.coca.repository.IUserRepository;
@@ -56,5 +57,17 @@ public class UserService implements UserDetailsService {
 
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
+    }
+    public UserSummaryResponse getUserByPhone(String phone) {
+        User user = userRepository.findByPhone(phone)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với số điện thoại này"));
+
+        UserSummaryResponse dto = new UserSummaryResponse();
+        dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
+        dto.setPhone(user.getPhone());
+        dto.setEmail(user.getEmail());
+
+        return dto;
     }
 }

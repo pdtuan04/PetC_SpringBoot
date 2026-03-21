@@ -50,7 +50,7 @@ public class Booking {
     @JoinColumn(name = "pet_id")
     private Pet pet;
 
-    @OneToMany(mappedBy = "booking")
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL)
     private List<BookingDetail> bookingDetails;
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
