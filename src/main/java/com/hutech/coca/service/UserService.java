@@ -1,6 +1,6 @@
 package com.hutech.coca.service;
 
-import com.hutech.coca.Role;
+import com.hutech.coca.common.Role;
 import com.hutech.coca.model.User;
 import com.hutech.coca.repository.IRoleRepository;
 import com.hutech.coca.repository.IUserRepository;
@@ -11,7 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.util.HashSet;
 import java.util.Optional;
 
