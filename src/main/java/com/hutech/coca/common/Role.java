@@ -1,4 +1,4 @@
-package com.hutech.coca;
+package com.hutech.coca.common;
 
 
 import lombok.AllArgsConstructor;
