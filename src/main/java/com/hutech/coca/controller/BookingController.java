@@ -1,13 +1,20 @@
 package com.hutech.coca.controller;
 
+import com.hutech.coca.dto.BookingDetailsResponse;
 import com.hutech.coca.dto.BookingRequest;
+import com.hutech.coca.dto.BookingSummaryResponse;
 import com.hutech.coca.model.Booking;
 import com.hutech.coca.service.BookingService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -16,36 +23,30 @@ import java.util.List;
 public class BookingController {
 
     private final BookingService bookingService;
-
-    @GetMapping
-    public ResponseEntity<List<Booking>> getAll() {
-        return ResponseEntity.ok(bookingService.getAllBookings());
+    @GetMapping("/bookings-in-week")
+    public ResponseEntity<List<BookingSummaryResponse>> getAllBookingsInWeek(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate) {
+        List<BookingSummaryResponse> bookings = bookingService.getAllBookingsInWeek(startDate.atStartOfDay());
+        return ResponseEntity.ok(bookings);
     }
-
     @GetMapping("/{id}")
-    public ResponseEntity<Booking> getById(@PathVariable Long id) {
-        return bookingService.getBookingById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
+    public ResponseEntity<Map<String, Object>> getBookingById(@PathVariable Long id) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            // Lấy data từ service
+            BookingDetailsResponse booking = bookingService.getBookingDetail(id);
 
-    @PostMapping
-    public ResponseEntity<Booking> create(@RequestBody BookingRequest request) {
-        // Nhận JSON từ React -> Đưa cho Service xử lý -> Trả về kết quả
-        throw new RuntimeException();
-    }
+            response.put("success", true);
+            response.put("message", "Get booking successfully.");
+            response.put("data", booking);
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Booking> update(@PathVariable Long id, @RequestBody Booking booking) {
-        return bookingService.getBookingById(id).map(existing -> {
-            booking.setId(id);
-            return ResponseEntity.ok(bookingService.saveBooking(booking));
-        }).orElse(ResponseEntity.notFound().build());
-    }
+            return ResponseEntity.ok(response);
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        bookingService.deleteBooking(id);
-        return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            // Xử lý khi không tìm thấy booking
+            response.put("success", false);
+            response.put("message", "Booking not found.");
+            return ResponseEntity.status(404).body(response);
+        }
     }
 }
