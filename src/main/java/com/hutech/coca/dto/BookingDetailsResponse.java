@@ -8,15 +8,18 @@ import java.util.List;
 @Getter
 @Setter
 public class BookingDetailsResponse {
-    private Long id; // Vẫn xài Long tự tăng theo db hiện tại nhé
+    private Long id;
     private String bookingCode;
     private LocalDateTime scheduledAt;
     private LocalDateTime expectedEndTime;
     private double totalPrice;
     private String notes;
-    private int bookingStatus; // Trả về dạng số (0: Pending, 1: Confirmed...)
+    private int bookingStatus;
     private Long userId;
     private String userName;
+
+    private Long petId;
     private String petName;
+
     private List<ServiceInBookingResponse> services;
 }

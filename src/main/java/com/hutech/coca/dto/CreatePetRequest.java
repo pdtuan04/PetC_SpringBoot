@@ -5,8 +5,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ServiceInBookingResponse {
-    private Long id;
+public class CreatePetRequest {
     private String name;
-    private double price;
+    private Long petTypeId;
+    private int age;
+    private String imageUrl;
 }
