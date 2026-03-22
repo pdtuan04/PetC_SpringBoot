@@ -22,9 +22,9 @@ import java.util.Map;
 public class UserController {
     private final UserService userService;
     @GetMapping("/search")
-    public ResponseEntity<Map<String, Object>> searchUserByPhone(@RequestParam String phone) {
+    public ResponseEntity<Map<String, Object>> searchUserByEmail(@RequestParam String email) {
         try {
-            UserSummaryResponse result = userService.getUserByPhone(phone);
+            UserSummaryResponse result = userService.getUserByEmail(email);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

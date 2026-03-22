@@ -29,7 +29,7 @@ public class BookingService {
     private final IServiceRepository serviceRepository;
     private final IUserRepository userRepository;
     private final BookingOptions bookingOptions;
-
+    private final EmailService emailService;
     // Sử dụng JobRunr thay thế cho Hangfire
     private final JobScheduler jobScheduler;
 
@@ -102,14 +102,10 @@ public class BookingService {
 
         // Lưu xuống DB để có ID
         bookingRepository.save(booking);
-
-        // 7. JobRunr lên lịch tự động hủy nếu quá giờ (Giống hệt Hangfire)
         jobScheduler.schedule(
                 holdExpiredAt,
                 () -> this.expiredBooking(booking.getId())
         );
-
-        // 8. Map ra Response trả về
         BookingDetailsResponse response = new BookingDetailsResponse();
         response.setId(booking.getId());
         response.setBookingCode(booking.getBookingCode());
@@ -136,13 +132,29 @@ public class BookingService {
     public boolean confirmBooking(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
-
         if (booking.getHoldExpiredAt().isBefore(LocalDateTime.now()) && booking.getBookingStatus() == BookingStatus.PENDING) {
             throw new RuntimeException("Booking hold time has expired. You haven't confirmed yet :((");
         }
-
         booking.setBookingStatus(BookingStatus.CONFIRMED);
         bookingRepository.save(booking);
+        User user = booking.getUser();
+        if (user != null && user.getEmail() != null && !user.getEmail().isEmpty()) {
+            try {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm - dd/MM/yyyy");
+                String formattedTime = booking.getScheduledAt().format(formatter);
+                emailService.sendBookingConfirmationWithQR(
+                        user.getEmail(),
+                        user.getUsername(),
+                        booking.getBookingCode(),
+                        formattedTime
+                );
+                System.out.println("✅ Đã kích hoạt gửi mail xác nhận cho Booking: " + booking.getBookingCode());
+            } catch (Exception e) {
+                // Log lỗi nhưng không làm roll back giao dịch xác nhận lịch
+                System.err.println("❌ Lỗi khi gọi gửi mail: " + e.getMessage());
+            }
+        }
+
         return true;
     }
 
