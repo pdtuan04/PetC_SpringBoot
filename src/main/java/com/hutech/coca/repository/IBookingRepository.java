@@ -16,6 +16,7 @@ public interface IBookingRepository extends JpaRepository<Booking, Long> {
 
     // Lấy danh sách Booking của 1 User
     List<Booking> findByUserId(Long userId);
+    
     @Query("SELECT b FROM Booking b " +
             "JOIN FETCH b.user " +
             "JOIN FETCH b.pet " +
@@ -23,5 +24,11 @@ public interface IBookingRepository extends JpaRepository<Booking, Long> {
             "LEFT JOIN FETCH bd.service " +
             "WHERE b.id = :id AND b.isDeleted = false")
     Optional<Booking> getBookingDetails(@Param("id") Long id);
+    
+    // Đếm số booking có sử dụng service (qua BookingDetail)
+    @Query("SELECT COUNT(DISTINCT b) FROM Booking b " +
+           "JOIN b.bookingDetails bd " +
+           "WHERE bd.service.id = :serviceId AND b.isDeleted = false")
+    long countByServiceId(@Param("serviceId") Long serviceId);
     Optional<Booking> findByBookingCode(String bookingCode);
 }

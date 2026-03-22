@@ -14,7 +14,7 @@ import org.hibernate.annotations.SQLRestriction;
 @Entity
 @Table(name = "services")
 @SQLDelete(sql = "UPDATE services SET is_deleted = true WHERE id = ?")
-@SQLRestriction("is_deleted = false")
+@SQLRestriction("(is_deleted = false OR is_deleted IS NULL)")
 public class Service {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,8 +31,11 @@ public class Service {
     @Min(value = 1, message = "Thời gian thực hiện tối thiểu là 1 phút")
     private int durationInMinutes;
 
-    private boolean isActive = true;
+    @Column(name = "is_active")
+    private Boolean isActive = true;
 
     @Column(name = "is_deleted")
-    private boolean isDeleted = false;
+    private Boolean isDeleted = false;
+    
+    private String imageUrl;
 }
