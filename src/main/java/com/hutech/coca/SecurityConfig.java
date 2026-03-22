@@ -12,7 +12,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-// CÁC IMPORT CORS ĐÚNG (Xóa sạch các dòng có chữ .reactive)
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,7 +23,6 @@ import java.util.List;
 @EnableWebSecurity // Kích hoạt tính năng bảo mật web của Spring Security.
 @RequiredArgsConstructor // Lombok tự động tạo constructor có tham số cho tất cả các trường final.
 public class SecurityConfig {
-
     @Bean
     public UserDetailsService userDetailsService(UserService userService) {
         return userService;
@@ -48,7 +46,7 @@ public class SecurityConfig {
         // KHÔNG dùng: configuration.setAllowedOrigins(List.of("*"));
 
         // NÊN dùng: Chỉ định đích danh địa chỉ Frontend React của bạn
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedOrigins(List.of("https://localhost:5173"));
 
         // HOẶC dùng Pattern nếu bạn có nhiều cổng localhost khác nhau:
         // configuration.setAllowedOriginPatterns(List.of("http://localhost:*"));
