@@ -58,16 +58,15 @@ public class UserService implements UserDetailsService {
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
-    public UserSummaryResponse getUserByPhone(String phone) {
-        User user = userRepository.findByPhone(phone)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với số điện thoại này"));
+    public UserSummaryResponse getUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với email này"));
 
         UserSummaryResponse dto = new UserSummaryResponse();
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
         dto.setPhone(user.getPhone());
         dto.setEmail(user.getEmail());
-
         return dto;
     }
 }

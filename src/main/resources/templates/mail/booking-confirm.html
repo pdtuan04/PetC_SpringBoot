@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Xác nhận lịch hẹn PetSpa</title>
+</head>
+<body style="font-family: Arial, sans-serif; text-align: center; color: #333; max-width: 500px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+
+<h2 style="color: #0d6efd;">Xin chào <span th:text="${userName}">Khách hàng</span>,</h2>
+
+<p>Cảm ơn bạn đã tin tưởng và đặt lịch tại PetSpa.</p>
+
+<h3 style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
+    ⏰ Giờ hẹn: <span style="color: #28a745;" th:text="${scheduledTime}">00:00 - 01/01/2026</span>
+</h3>
+
+<p>Vui lòng lưu lại và đưa mã QR này cho nhân viên để quét khi đến cửa hàng nhé:</p>
+
+<!-- Điểm mấu chốt: src="cid:qrCodeImage" để Java nhúng ảnh vào đây -->
+<img src="cid:qrCodeImage" alt="QR Code" style="border: 2px solid #ccc; border-radius: 10px; padding: 10px; margin: 10px 0; width: 200px;"/>
+
+<p style="font-size: 1.2rem;">
+    Mã số: <strong><span style="color: #dc3545;" th:text="${bookingCode}">CODE</span></strong>
+</p>
+
+<p style="color: #6c757d; font-size: 0.9rem;">Hẹn gặp lại bạn và bé cưng!</p>
+
+</body>
+</html>
