@@ -19,15 +19,11 @@ import java.util.Map;
 public class BookingController {
 
     private final BookingService bookingService;
-
-    // 1. LẤY DANH SÁCH GIỜ TRỐNG TRONG NGÀY
-    // API: GET /api/admin/bookings/available-slots?durationInMinutes=60&selectedDay=2026-03-25
     @GetMapping("/available-slots")
     public ResponseEntity<Map<String, Object>> getAvailableBookingSlots(
             @RequestParam int durationInMinutes,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate selectedDay) {
         try {
-            // Gọi service với ngày đã chọn (atStartOfDay để lấy mốc 00:00:00 đầu ngày)
             List<AvailableSlotResponse> result = bookingService.getAvailableBookingSlots(durationInMinutes, selectedDay.atStartOfDay());
 
             Map<String, Object> response = new HashMap<>();
@@ -43,15 +39,11 @@ public class BookingController {
             return ResponseEntity.badRequest().body(response);
         }
     }
-
-    // 2. TẠO LỊCH HẸN HỘ KHÁCH HÀNG (Dùng userId tìm được từ số điện thoại)
-    // API: POST /api/admin/bookings/user/{userId}
     @PostMapping("/user/{userId}")
     public ResponseEntity<Map<String, Object>> createBookingForUser(
             @PathVariable Long userId,
             @RequestBody CreateBookingRequest request) {
         try {
-            // Truyền thẳng userId của khách vào service
             BookingDetailsResponse result = bookingService.createBooking(request, userId);
 
             Map<String, Object> response = new HashMap<>();
@@ -132,7 +124,6 @@ public class BookingController {
     public ResponseEntity<Map<String, Object>> getBookingById(@PathVariable Long id) {
         Map<String, Object> response = new HashMap<>();
         try {
-            // Lấy data từ service
             BookingDetailsResponse booking = bookingService.getBookingDetail(id);
 
             response.put("success", true);
@@ -142,14 +133,11 @@ public class BookingController {
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
-            // Xử lý khi không tìm thấy booking
             response.put("success", false);
             response.put("message", "Booking not found.");
             return ResponseEntity.status(404).body(response);
         }
     }
-    // 6. SỬA LỊCH HẸN
-    // API: PUT /api/admin/bookings/{bookingId}
     @PutMapping("/{bookingId}")
     public ResponseEntity<Map<String, Object>> updateBooking(
             @PathVariable Long bookingId,
@@ -171,8 +159,24 @@ public class BookingController {
         }
     }
 
-    // 7. XÓA (XÓA MỀM) LỊCH HẸN
-    // API: DELETE /api/admin/bookings/{bookingId}
+    @GetMapping("/code/{bookingCode}")
+    public ResponseEntity<Map<String, Object>> getBookingByCode(@PathVariable String bookingCode) {
+        try {
+            BookingDetailsResponse result = bookingService.getBookingDetailByCode(bookingCode);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Tìm thấy lịch hẹn.");
+            response.put("data", result);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
     @DeleteMapping("/{bookingId}")
     public ResponseEntity<Map<String, Object>> deleteBooking(@PathVariable Long bookingId) {
         try {

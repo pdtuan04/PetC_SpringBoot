@@ -23,4 +23,5 @@ public interface IBookingRepository extends JpaRepository<Booking, Long> {
             "LEFT JOIN FETCH bd.service " +
             "WHERE b.id = :id AND b.isDeleted = false")
     Optional<Booking> getBookingDetails(@Param("id") Long id);
+    Optional<Booking> findByBookingCode(String bookingCode);
 }
