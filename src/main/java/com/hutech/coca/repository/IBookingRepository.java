@@ -30,4 +30,5 @@ public interface IBookingRepository extends JpaRepository<Booking, Long> {
            "JOIN b.bookingDetails bd " +
            "WHERE bd.service.id = :serviceId AND b.isDeleted = false")
     long countByServiceId(@Param("serviceId") Long serviceId);
+    Optional<Booking> findByBookingCode(String bookingCode);
 }
