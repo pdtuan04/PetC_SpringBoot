@@ -1,5 +1,6 @@
 package com.hutech.coca.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
@@ -29,5 +30,6 @@ public class PetType {
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
     @ManyToMany(mappedBy = "petTypes")
+    @JsonIgnore
     private Set<Service> services;
 }
