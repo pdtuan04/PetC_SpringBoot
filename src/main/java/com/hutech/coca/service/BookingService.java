@@ -335,4 +335,11 @@ public class BookingService {
         bookingRepository.save(booking);
         return true;
     }
+    public BookingDetailsResponse getBookingDetailByCode(String bookingCode) {
+        Booking booking = bookingRepository.findByBookingCode(bookingCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn/lịch hẹn với mã này!"));
+
+        // Gọi lại hàm getBookingDetail(Long id) có sẵn của bạn để tận dụng code map ra DTO
+        return getBookingDetail(booking.getId());
+    }
 }
