@@ -37,4 +37,22 @@ public class ServiceController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+    @GetMapping("/pet-type/{petTypeId}")
+    public ResponseEntity<Map<String, Object>> getServicesByPetType(@PathVariable Long petTypeId) {
+        try {
+            List<ServiceResponse> result = serviceService.getActiveServicesByPetType(petTypeId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Lấy dịch vụ theo loại thú cưng thành công.");
+            response.put("data", result);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }

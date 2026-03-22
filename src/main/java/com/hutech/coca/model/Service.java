@@ -7,6 +7,8 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.util.Set;
+
 @Setter
 @Getter
 @RequiredArgsConstructor
@@ -36,6 +38,12 @@ public class Service {
 
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
-    
+    @ManyToMany
+    @JoinTable(
+            name = "service_pet_types",
+            joinColumns = @JoinColumn(name = "service_id"),
+            inverseJoinColumns = @JoinColumn(name = "pet_type_id")
+    )
+    private Set<PetType> petTypes;
     private String imageUrl;
 }

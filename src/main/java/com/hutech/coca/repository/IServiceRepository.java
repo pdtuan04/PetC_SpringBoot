@@ -26,4 +26,6 @@ public interface IServiceRepository extends JpaRepository<Service, Long> {
     // Kiểm tra tên dịch vụ trùng khi update (loại trừ ID hiện tại)
     @Query("SELECT COUNT(s) > 0 FROM Service s WHERE LOWER(s.name) = LOWER(:name) AND s.id != :id")
     boolean existsByNameIgnoreCaseAndIdNot(@Param("name") String name, @Param("id") Long id);
+    @Query("SELECT s FROM Service s JOIN s.petTypes pt WHERE pt.id = :petTypeId AND s.isActive = true AND s.isDeleted = false")
+    List<Service> findByPetTypeIdAndIsActiveTrue(@Param("petTypeId") Long petTypeId);
 }

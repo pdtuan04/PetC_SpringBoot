@@ -342,4 +342,31 @@ public class BookingService {
         // Gọi lại hàm getBookingDetail(Long id) có sẵn của bạn để tận dụng code map ra DTO
         return getBookingDetail(booking.getId());
     }
+    @Transactional
+    public boolean startBooking(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch hẹn."));
+
+        if (booking.getBookingStatus() != BookingStatus.CONFIRMED) {
+            throw new RuntimeException("Chỉ có thể tiến hành khi lịch hẹn đang ở trạng thái 'Đã xác nhận'.");
+        }
+
+        booking.setBookingStatus(BookingStatus.IN_PROGRESS);
+        bookingRepository.save(booking);
+        return true;
+    }
+
+    @Transactional
+    public boolean completeBooking(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch hẹn."));
+
+        if (booking.getBookingStatus() != BookingStatus.IN_PROGRESS) {
+            throw new RuntimeException("Chỉ có thể hoàn thành lịch hẹn đang được tiến hành.");
+        }
+
+        booking.setBookingStatus(BookingStatus.COMPLETED);
+        bookingRepository.save(booking);
+        return true;
+    }
 }

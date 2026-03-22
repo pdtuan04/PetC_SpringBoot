@@ -75,7 +75,11 @@ public class PetService {
             dto.setName(p.getName());
             dto.setAge(p.getAge());
             dto.setImageUrl(p.getImageUrl());
+            if (p.getPetType() != null) {
+                dto.setPetTypeId(p.getPetType().getId());
+            }
             return dto;
         }).collect(Collectors.toList());
     }
+
 }

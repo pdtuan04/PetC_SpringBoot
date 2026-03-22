@@ -6,6 +6,8 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.util.Set;
+
 @Setter
 @Getter
 @RequiredArgsConstructor
@@ -26,4 +28,6 @@ public class PetType {
 
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
+    @ManyToMany(mappedBy = "petTypes")
+    private Set<Service> services;
 }

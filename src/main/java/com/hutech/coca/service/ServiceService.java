@@ -25,4 +25,15 @@ public class ServiceService {
             return dto;
         }).collect(Collectors.toList());
     }
+    public List<ServiceResponse> getActiveServicesByPetType(Long petTypeId) {
+        return serviceRepository.findByPetTypeIdAndIsActiveTrue(petTypeId).stream().map(s -> {
+            ServiceResponse dto = new ServiceResponse();
+            dto.setId(s.getId());
+            dto.setName(s.getName());
+            dto.setDescription(s.getDescription());
+            dto.setPrice(s.getPrice());
+            dto.setDurationInMinutes(s.getDurationInMinutes());
+            return dto;
+        }).collect(Collectors.toList());
+    }
 }

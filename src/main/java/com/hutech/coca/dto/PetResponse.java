@@ -10,4 +10,5 @@ public class PetResponse {
     private String name;
     private int age;
     private String imageUrl;
+    private Long petTypeId;
 }

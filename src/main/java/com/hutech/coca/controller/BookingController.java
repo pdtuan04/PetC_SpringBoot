@@ -194,4 +194,39 @@ public class BookingController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+    @PostMapping("/{bookingId}/start")
+    public ResponseEntity<Map<String, Object>> startBooking(@PathVariable Long bookingId) {
+        try {
+            bookingService.startBooking(bookingId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Đã bắt đầu tiến hành dịch vụ.");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @PostMapping("/{bookingId}/complete")
+    public ResponseEntity<Map<String, Object>> completeBooking(@PathVariable Long bookingId) {
+        try {
+            bookingService.completeBooking(bookingId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Đã hoàn thành dịch vụ.");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }
