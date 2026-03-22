@@ -45,7 +45,7 @@ public class BookingService {
 
         // 2. Kiểm tra danh sách dịch vụ
         List<com.hutech.coca.model.Service> services = serviceRepository.findAllById(request.getServices())
-                .stream().filter(com.hutech.coca.model.Service::isActive).toList();
+                .stream().filter(com.hutech.coca.model.Service::getIsActive).toList();
 
         if (services.size() != request.getServices().size()) {
             throw new RuntimeException("One or more services not found");
@@ -271,7 +271,7 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Pet not found"));
 
         List<com.hutech.coca.model.Service> services = serviceRepository.findAllById(request.getServices())
-                .stream().filter(com.hutech.coca.model.Service::isActive).toList();
+                .stream().filter(com.hutech.coca.model.Service::getIsActive).toList();
 
         if (services.size() != request.getServices().size()) {
             throw new RuntimeException("One or more services not found");
