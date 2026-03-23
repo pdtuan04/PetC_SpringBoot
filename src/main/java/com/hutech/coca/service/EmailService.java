@@ -79,4 +79,29 @@ public class EmailService {
             System.err.println("Lỗi khi gửi email QR: " + e.getMessage());
         }
     }
+
+    @Async
+    public void sendStaffWelcomeEmail(String toEmail, String fullName, String username, 
+                                      String temporaryPassword, String staffCode) {
+        try {
+            Context ctx = new Context();
+            ctx.setVariable("fullName", fullName);
+            ctx.setVariable("username", username);
+            ctx.setVariable("temporaryPassword", temporaryPassword);
+            ctx.setVariable("staffCode", staffCode);
+
+            String htmlMsg = templateEngine.process("mail/staff-welcome", ctx);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(toEmail);
+            helper.setSubject("🎉 Chào mừng bạn đến với PetCare - Thông tin tài khoản");
+            helper.setText(htmlMsg, true);
+
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.err.println("Lỗi khi gửi email chào mừng nhân viên: " + e.getMessage());
+        }
+    }
 }
