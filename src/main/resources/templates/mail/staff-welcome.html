@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chào mừng nhân viên mới</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .info-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .credential {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .credential strong {
+            color: #856404;
+        }
+
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Chào mừng đến với PetCare!</h1>
+        </div>
+
+        <div class="content">
+            <p>Xin chào <strong th:text="${fullName}">Nhân viên</strong>,</p>
+
+            <p>Chúc mừng bạn đã chính thức trở thành thành viên của đội ngũ PetCare! Chúng tôi rất vui mừng được chào
+                đón bạn.</p>
+
+            <div class="info-box">
+                <h3>📋 Thông tin tài khoản của bạn:</h3>
+                <p><strong>Mã nhân viên:</strong> <span th:text="${staffCode}">STF2024001</span></p>
+                <p><strong>Email:</strong> <span th:text="${fullName}">email@example.com</span></p>
+            </div>
+
+            <div class="credential">
+                <h3>🔐 Thông tin đăng nhập:</h3>
+                <p><strong>Tên đăng nhập:</strong> <span th:text="${username}">username</span></p>
+                <p><strong>Mật khẩu tạm thời:</strong> <span th:text="${temporaryPassword}">TempPass123</span></p>
+                <p style="color: #856404; margin-top: 10px;">
+                    ⚠️ <strong>Quan trọng:</strong> Vui lòng đổi mật khẩu ngay sau lần đăng nhập đầu tiên để bảo mật tài
+                    khoản.
+                </p>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="http://localhost:5173/login" class="button">Đăng nhập ngay</a>
+            </div>
+
+            <div class="info-box" style="margin-top: 30px;">
+                <h3>📝 Các bước tiếp theo:</h3>
+                <ol>
+                    <li>Đăng nhập vào hệ thống bằng thông tin trên</li>
+                    <li>Đổi mật khẩu tạm thời thành mật khẩu cá nhân</li>
+                    <li>Cập nhật thông tin cá nhân và ảnh đại diện</li>
+                    <li>Làm quen với giao diện và chức năng hệ thống</li>
+                </ol>
+            </div>
+
+            <p>Nếu bạn có bất kỳ câu hỏi nào, đừng ngần ngại liên hệ với bộ phận IT hoặc quản lý trực tiếp của bạn.</p>
+
+            <p>Chúc bạn có một ngày làm việc tuyệt vời!</p>
+
+            <p><strong>Trân trọng,</strong><br>
+                Đội ngũ PetCare</p>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 PetCare. All rights reserved.</p>
+            <p>Email này được gửi tự động, vui lòng không trả lời.</p>
+        </div>
+    </div>
+</body>
+
+</html>
