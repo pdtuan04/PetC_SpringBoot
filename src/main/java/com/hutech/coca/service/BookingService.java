@@ -1,10 +1,13 @@
 package com.hutech.coca.service;
 
 import com.hutech.coca.common.BookingStatus;
+import com.hutech.coca.common.PaymentMethod;
+import com.hutech.coca.common.PaymentTransactionStatus;
 import com.hutech.coca.config.BookingOptions;
 import com.hutech.coca.dto.*;
 import com.hutech.coca.model.*;
 import com.hutech.coca.repository.IBookingRepository;
+import com.hutech.coca.repository.IPaymentTransactionRepository;
 import com.hutech.coca.repository.IPetRepository;
 import com.hutech.coca.repository.IServiceRepository;
 import com.hutech.coca.repository.IUserRepository;
@@ -28,6 +31,7 @@ public class BookingService {
     private final IPetRepository petRepository;
     private final IServiceRepository serviceRepository;
     private final IUserRepository userRepository;
+    private final IPaymentTransactionRepository paymentTransactionRepository;
     private final BookingOptions bookingOptions;
     private final EmailService emailService;
     // Sử dụng JobRunr thay thế cho Hangfire
@@ -35,6 +39,14 @@ public class BookingService {
 
     @Transactional
     public BookingDetailsResponse createBooking(CreateBookingRequest request, Long userId) {
+
+        if (request.getScheduledAt() == null) {
+            throw new RuntimeException("Scheduled time is required");
+        }
+
+        if (!request.getScheduledAt().isAfter(LocalDateTime.now())) {
+            throw new RuntimeException("Không thể đặt lịch ở thời điểm đã qua.");
+        }
 
         // 1. Kiểm tra tài khoản và thú cưng
         User user = userRepository.findById(userId)
@@ -162,9 +174,57 @@ public class BookingService {
     @Transactional
     public void expiredBooking(Long id) {
         Booking booking = bookingRepository.findById(id).orElse(null);
-        if (booking != null && booking.getBookingStatus() == BookingStatus.PENDING && booking.getHoldExpiredAt().isBefore(LocalDateTime.now())) {
+        if (booking != null
+                && (booking.getBookingStatus() == BookingStatus.PENDING || booking.getBookingStatus() == BookingStatus.PENDING_PAYMENT)
+                && booking.getHoldExpiredAt().isBefore(LocalDateTime.now())) {
             booking.setBookingStatus(BookingStatus.CANCELLED);
             bookingRepository.save(booking);
+        }
+    }
+
+    @Transactional
+    public void markBookingPendingPayment(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getBookingStatus() != BookingStatus.PENDING) {
+            throw new RuntimeException("Booking is not in pending state to start payment.");
+        }
+
+        booking.setBookingStatus(BookingStatus.PENDING_PAYMENT);
+        bookingRepository.save(booking);
+    }
+
+    @Transactional
+    public void confirmBookingAfterPayment(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getBookingStatus() == BookingStatus.CANCELLED) {
+            throw new RuntimeException("Booking was cancelled and cannot be confirmed.");
+        }
+
+        if (booking.getHoldExpiredAt().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Booking hold time has expired.");
+        }
+
+        booking.setBookingStatus(BookingStatus.CONFIRMED);
+        bookingRepository.save(booking);
+
+        User user = booking.getUser();
+        if (user != null && user.getEmail() != null && !user.getEmail().isEmpty()) {
+            try {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm - dd/MM/yyyy");
+                String formattedTime = booking.getScheduledAt().format(formatter);
+                emailService.sendBookingConfirmationWithQR(
+                        user.getEmail(),
+                        user.getUsername(),
+                        booking.getBookingCode(),
+                        formattedTime
+                );
+            } catch (Exception e) {
+                System.err.println("Failed to send confirmation email after payment: " + e.getMessage());
+            }
         }
     }
 
@@ -181,6 +241,7 @@ public class BookingService {
     public List<AvailableSlotResponse> getAvailableBookingSlots(int durationInMinutes, LocalDateTime selectedDay) {
         LocalDateTime startOfDayQuery = selectedDay.toLocalDate().atStartOfDay();
         LocalDateTime endOfDayQuery = startOfDayQuery.plusDays(1);
+        LocalDateTime now = LocalDateTime.now();
 
         List<Booking> bookings = bookingRepository.findByScheduledAtGreaterThanEqualAndScheduledAtLessThanAndIsDeletedFalse(startOfDayQuery, endOfDayQuery);
         List<AvailableSlotResponse> availableSlots = new ArrayList<>();
@@ -198,7 +259,7 @@ public class BookingService {
                             && b.getBookingStatus() != BookingStatus.CANCELLED)
                     .count();
 
-            if (overlapCount < bookingOptions.getMaxBookingsPerSlot()) {
+                if (overlapCount < bookingOptions.getMaxBookingsPerSlot() && currentCheckTime.isAfter(now)) {
                 AvailableSlotResponse slot = new AvailableSlotResponse();
                 slot.setStartAt(currentCheckTime);
                 slot.setEndAt(slotEndTime);
@@ -273,6 +334,14 @@ public class BookingService {
     public BookingDetailsResponse updateBooking(Long bookingId, UpdateBookingRequest request) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (request.getScheduledAt() == null) {
+            throw new RuntimeException("Scheduled time is required");
+        }
+
+        if (!request.getScheduledAt().isAfter(LocalDateTime.now())) {
+            throw new RuntimeException("Không thể cập nhật lịch về thời điểm đã qua.");
+        }
 
         // Chỉ cho phép sửa nếu lịch đang chờ hoặc đã xác nhận
         if (booking.getBookingStatus() == BookingStatus.CANCELLED || booking.getBookingStatus() == BookingStatus.COMPLETED) {
@@ -379,6 +448,18 @@ public class BookingService {
 
         booking.setBookingStatus(BookingStatus.COMPLETED);
         bookingRepository.save(booking);
+
+        // Nếu là PAY_LATER (tiền mặt), đánh dấu đã thu tiền khi hoàn thành dịch vụ
+        paymentTransactionRepository
+                .findTopByBookingIdAndPaymentStatusOrderByUpdatedAtDesc(bookingId, PaymentTransactionStatus.DEFERRED)
+                .ifPresent(tx -> {
+                    if (tx.getPaymentMethod() == PaymentMethod.PAY_LATER) {
+                        tx.setPaymentStatus(PaymentTransactionStatus.SUCCESS);
+                        tx.setAmount(booking.getTotalPrice());
+                        paymentTransactionRepository.save(tx);
+                    }
+                });
+
         return true;
     }
 }
