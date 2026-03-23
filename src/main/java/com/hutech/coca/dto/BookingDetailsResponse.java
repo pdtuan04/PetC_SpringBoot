@@ -20,6 +20,7 @@ public class BookingDetailsResponse {
 
     private Long petId;
     private String petName;
-
+    private Boolean paid;
+    private String paymentMethod;
     private List<ServiceInBookingResponse> services;
 }

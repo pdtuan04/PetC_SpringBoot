@@ -1,5 +1,6 @@
 package com.hutech.coca.controller;
 
+import com.hutech.coca.common.PaymentMethod;
 import com.hutech.coca.dto.*;
 import com.hutech.coca.service.BookingService;
 import lombok.RequiredArgsConstructor;
@@ -213,13 +214,32 @@ public class BookingController {
     }
 
     @PostMapping("/{bookingId}/complete")
-    public ResponseEntity<Map<String, Object>> completeBooking(@PathVariable Long bookingId) {
+    public ResponseEntity<Map<String, Object>> completeBooking(
+            @PathVariable Long bookingId,
+            @RequestParam(required = false, defaultValue = "PAY_LATER") PaymentMethod paymentMethod) { // Thêm RequestParam
         try {
-            bookingService.completeBooking(bookingId);
+            bookingService.completeBooking(bookingId, paymentMethod); // Truyền xuống service
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Đã hoàn thành dịch vụ.");
+            response.put("message", "Đã hoàn thành dịch vụ và chốt doanh thu.");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    @PostMapping("/{bookingId}/noshow")
+    public ResponseEntity<Map<String, Object>> markNoShow(@PathVariable Long bookingId) {
+        try {
+            bookingService.markNoShow(bookingId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Đã cập nhật trạng thái Khách không đến (No-show).");
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

@@ -15,4 +15,6 @@ public class BookingSummaryResponse {
     private LocalDateTime expectedEndTime;
     private int bookingStatus;
     private LocalDateTime createAt;
+    private boolean isPaid;
+    private String paymentMethod;
 }

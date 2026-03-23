@@ -61,4 +61,6 @@ public class Booking {
     protected void onCreate() {
         this.createAt = LocalDateTime.now();
     }
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL)
+    private List<PaymentTransaction> paymentTransactions;
 }

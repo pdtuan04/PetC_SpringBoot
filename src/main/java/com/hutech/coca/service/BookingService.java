@@ -285,6 +285,23 @@ public class BookingService {
             response.setExpectedEndTime(b.getExpectedEndTime());
             response.setBookingStatus(b.getBookingStatus().ordinal());
             response.setCreateAt(b.getCreateAt());
+
+            // ======= THÊM LOGIC LẤY THÔNG TIN THANH TOÁN =======
+            List<PaymentTransaction> txList = b.getPaymentTransactions();
+            if (txList != null && !txList.isEmpty()) {
+                PaymentTransaction latestTx = txList.stream()
+                        .filter(tx -> tx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS)
+                        .findFirst()
+                        .orElse(txList.get(txList.size() - 1));
+
+                response
+                        .setPaid(latestTx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS);
+                if (latestTx.getPaymentMethod() != null) {
+                    response.setPaymentMethod(latestTx.getPaymentMethod().name());
+                }
+            } else {
+                response.setPaid(false);
+            }
             return response;
         }).collect(Collectors.toList());
     }
@@ -301,19 +318,48 @@ public class BookingService {
         response.setTotalPrice(booking.getTotalPrice());
         response.setNotes(booking.getNotes());
         response.setBookingStatus(booking.getBookingStatus().ordinal());
-        response.setUserId(booking.getUser().getId());
-        response.setPetId(booking.getPet().getId());
-        response.setUserName(booking.getUser().getUsername());
-        response.setPetName(booking.getPet().getName());
 
-        response.setServices(booking.getBookingDetails().stream().map(bd -> {
-            ServiceInBookingResponse sRes = new ServiceInBookingResponse();
-            sRes.setName(bd.getService().getName());
-            sRes.setId(bd.getService().getId());
-            sRes.setPrice(bd.getPriceAtTime());
-            return sRes;
-        }).collect(Collectors.toList()));
+        if (booking.getUser() != null) {
+            response.setUserId(booking.getUser().getId());
+            response.setUserName(booking.getUser().getUsername());
+        }
 
+        if (booking.getPet() != null) {
+            response.setPetId(booking.getPet().getId());
+            response.setPetName(booking.getPet().getName());
+        }
+        if (booking.getBookingDetails() != null) {
+            response.setServices(booking.getBookingDetails().stream().map(bd -> {
+                ServiceInBookingResponse sRes = new ServiceInBookingResponse();
+                sRes.setName(bd.getService().getName());
+                sRes.setId(bd.getService().getId());
+                sRes.setPrice(bd.getPriceAtTime());
+                return sRes;
+            }).collect(Collectors.toList()));
+        }
+        paymentTransactionRepository
+                .findTopByBookingIdAndPaymentStatusOrderByUpdatedAtDesc(id, PaymentTransactionStatus.SUCCESS)
+                .ifPresentOrElse(
+                        successTx -> {
+                            response.setPaid(true);
+                            if (successTx.getPaymentMethod() != null) {
+                                response.setPaymentMethod(successTx.getPaymentMethod().name());
+                            }
+                        },
+                        () -> {
+                            paymentTransactionRepository.findTopByBookingIdOrderByUpdatedAtDesc(id)
+                                    .ifPresentOrElse(latestTx -> {
+                                        response.setPaid(false);
+                                        if (latestTx.getPaymentMethod() != null) {
+                                            response.setPaymentMethod(latestTx.getPaymentMethod().name());
+                                        }
+                                    }, () -> {
+                                        // Hoàn toàn chưa có giao dịch nào
+                                        response.setPaid(false);
+                                        response.setPaymentMethod(null);
+                                    });
+                        }
+                );
         return response;
     }
 
@@ -327,6 +373,20 @@ public class BookingService {
             response.setCreateAt(b.getCreateAt());
             response.setExpectedEndTime(b.getExpectedEndTime());
             response.setScheduledAt(b.getScheduledAt());
+            List<PaymentTransaction> txList = b.getPaymentTransactions();
+            if (txList != null && !txList.isEmpty()) {
+                PaymentTransaction latestTx = txList.stream()
+                        .filter(tx -> tx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS)
+                        .findFirst()
+                        .orElse(txList.get(txList.size() - 1));
+
+                response.setPaid(latestTx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS);
+                if (latestTx.getPaymentMethod() != null) {
+                    response.setPaymentMethod(latestTx.getPaymentMethod().name());
+                }
+            } else {
+                response.setPaid(false);
+            }
             return response;
         }).collect(Collectors.toList());
     }
@@ -438,7 +498,7 @@ public class BookingService {
     }
 
     @Transactional
-    public boolean completeBooking(Long bookingId) {
+    public boolean completeBooking(Long bookingId, PaymentMethod finalPaymentMethod) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch hẹn."));
 
@@ -446,19 +506,52 @@ public class BookingService {
             throw new RuntimeException("Chỉ có thể hoàn thành lịch hẹn đang được tiến hành.");
         }
 
+        // 1. Chốt trạng thái lịch hẹn thành COMPLETED
         booking.setBookingStatus(BookingStatus.COMPLETED);
         bookingRepository.save(booking);
 
-        // Nếu là PAY_LATER (tiền mặt), đánh dấu đã thu tiền khi hoàn thành dịch vụ
-        paymentTransactionRepository
-                .findTopByBookingIdAndPaymentStatusOrderByUpdatedAtDesc(bookingId, PaymentTransactionStatus.DEFERRED)
-                .ifPresent(tx -> {
-                    if (tx.getPaymentMethod() == PaymentMethod.PAY_LATER) {
-                        tx.setPaymentStatus(PaymentTransactionStatus.SUCCESS);
-                        tx.setAmount(booking.getTotalPrice());
-                        paymentTransactionRepository.save(tx);
-                    }
-                });
+        // 2. Tìm giao dịch hiện tại (Nếu có)
+        java.util.Optional<PaymentTransaction> existingTx = paymentTransactionRepository.findTopByBookingIdOrderByUpdatedAtDesc(bookingId);
+
+        if (existingTx.isPresent()) {
+            // TRƯỜNG HỢP 1: Khách tự đặt (Đã có giao dịch mồi trước đó) -> Cập nhật thành SUCCESS
+            PaymentTransaction tx = existingTx.get();
+            if (tx.getPaymentStatus() != PaymentTransactionStatus.SUCCESS) {
+                if (finalPaymentMethod != null) {
+                    tx.setPaymentMethod(finalPaymentMethod);
+                }
+                tx.setPaymentStatus(PaymentTransactionStatus.SUCCESS);
+                tx.setAmount(booking.getTotalPrice());
+                paymentTransactionRepository.save(tx);
+            }
+        } else {
+            // TRƯỜNG HỢP 2: Admin đặt hộ (Chưa từng có giao dịch nào) -> TẠO MỚI VÀ CHỐT SUCCESS LUÔN
+            PaymentTransaction newTx = new PaymentTransaction();
+            newTx.setBooking(booking);
+            newTx.setUser(booking.getUser());
+            newTx.setPaymentMethod(finalPaymentMethod != null ? finalPaymentMethod : PaymentMethod.PAY_LATER);
+            newTx.setPaymentStatus(PaymentTransactionStatus.SUCCESS);
+            newTx.setAmount(booking.getTotalPrice() != null ? booking.getTotalPrice() : 0.0);
+            newTx.setTransactionRef("COUNTER_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
+            newTx.setPaymentProvider("AT_COUNTER");
+            paymentTransactionRepository.save(newTx);
+        }
+
+        return true;
+    }
+    @Transactional
+    public boolean markNoShow(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch hẹn."));
+
+        // Chỉ những đơn đã xác nhận (chuẩn bị làm) thì mới có thể báo vắng mặt
+        if (booking.getBookingStatus() != BookingStatus.CONFIRMED) {
+            throw new RuntimeException("Chỉ có thể báo vắng mặt khi lịch hẹn đang ở trạng thái 'Đã xác nhận'.");
+        }
+
+        // Cập nhật trạng thái thành NO_SHOW (Khách không đến)
+        booking.setBookingStatus(BookingStatus.NO_SHOW);
+        bookingRepository.save(booking);
 
         return true;
     }
