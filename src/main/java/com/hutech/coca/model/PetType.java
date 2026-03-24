@@ -7,6 +7,7 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Setter
@@ -29,6 +30,9 @@ public class PetType {
 
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
+
+    @Column(name = "create_at")
+    private LocalDateTime createAt = LocalDateTime.now();
     @ManyToMany(mappedBy = "petTypes")
     @JsonIgnore
     private Set<Service> services;
