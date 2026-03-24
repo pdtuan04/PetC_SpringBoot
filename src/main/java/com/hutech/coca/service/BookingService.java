@@ -34,12 +34,35 @@ public class BookingService {
     private final IPaymentTransactionRepository paymentTransactionRepository;
     private final BookingOptions bookingOptions;
     private final EmailService emailService;
-    // Sử dụng JobRunr thay thế cho Hangfire
     private final JobScheduler jobScheduler;
+
+    // =======================================================================
+    // THUẬT TOÁN ĐẾM THÔNG MINH: CẮT NHỎ THỜI GIAN MỖI 5 PHÚT ĐỂ KIỂM TRA
+    // =======================================================================
+    private boolean isSlotAvailable(LocalDateTime start, LocalDateTime end, List<Booking> bookingsInDay, Long excludeBookingId) {
+        LocalDateTime checkPoint = start;
+
+        // Bước nhảy 5 phút đảm bảo độ chính xác tuyệt đối
+        while (checkPoint.isBefore(end)) {
+            final LocalDateTime currentCheck = checkPoint;
+
+            long concurrentBookings = bookingsInDay.stream()
+                    .filter(b -> b.getBookingStatus() != BookingStatus.CANCELLED)
+                    .filter(b -> excludeBookingId == null || !b.getId().equals(excludeBookingId))
+                    // Chỉ đếm khách ĐANG LÀM DỊCH VỤ tại chính xác phút này
+                    .filter(b -> !b.getScheduledAt().isAfter(currentCheck) && b.getExpectedEndTime().isAfter(currentCheck))
+                    .count();
+
+            if (concurrentBookings >= bookingOptions.getMaxBookingsPerSlot()) {
+                return false; // Phát hiện quá tải tại thời điểm này -> Báo lỗi ngay
+            }
+            checkPoint = checkPoint.plusMinutes(5);
+        }
+        return true;
+    }
 
     @Transactional
     public BookingDetailsResponse createBooking(CreateBookingRequest request, Long userId) {
-
         if (request.getScheduledAt() == null) {
             throw new RuntimeException("Scheduled time is required");
         }
@@ -48,14 +71,12 @@ public class BookingService {
             throw new RuntimeException("Không thể đặt lịch ở thời điểm đã qua.");
         }
 
-        // 1. Kiểm tra tài khoản và thú cưng
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Account null"));
 
         Pet pet = petRepository.findById(request.getPetId())
                 .orElseThrow(() -> new RuntimeException("Pet not found"));
 
-        // 2. Kiểm tra danh sách dịch vụ
         List<com.hutech.coca.model.Service> services = serviceRepository.findAllById(request.getServices())
                 .stream().filter(com.hutech.coca.model.Service::getIsActive).toList();
 
@@ -63,26 +84,18 @@ public class BookingService {
             throw new RuntimeException("One or more services not found");
         }
 
-        // 3. Tính toán thời lượng và giờ kết thúc
         int totalMinutes = services.stream().mapToInt(com.hutech.coca.model.Service::getDurationInMinutes).sum();
         LocalDateTime expectedEndTime = request.getScheduledAt().plusMinutes(totalMinutes);
 
-        // 4. Kiểm tra slot trống
+        // --- GỌI HÀM KIỂM TRA THÔNG MINH ---
         LocalDateTime startOfDay = request.getScheduledAt().toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
         List<Booking> bookingsInDay = bookingRepository.findByScheduledAtGreaterThanEqualAndScheduledAtLessThanAndIsDeletedFalse(startOfDay, endOfDay);
 
-        long overlapCount = bookingsInDay.stream()
-                .filter(b -> b.getScheduledAt().isBefore(expectedEndTime)
-                        && b.getExpectedEndTime().isAfter(request.getScheduledAt())
-                        && b.getBookingStatus() != BookingStatus.CANCELLED)
-                .count();
-
-        if (overlapCount >= bookingOptions.getMaxBookingsPerSlot()) {
-            throw new RuntimeException("BookingNoAvailableSlotException"); // Bạn có thể thay bằng Custom Exception của bạn
+        if (!isSlotAvailable(request.getScheduledAt(), expectedEndTime, bookingsInDay, null)) {
+            throw new RuntimeException("Khung giờ này đã kín lịch, vui lòng chọn giờ khác.");
         }
 
-        // 5. Tính tổng tiền và cấu hình thời gian Hold
         double totalPrice = services.stream().mapToDouble(com.hutech.coca.model.Service::getPrice).sum();
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime holdExpiredAt = now.plusMinutes(bookingOptions.getHoldMinutes());
@@ -90,7 +103,6 @@ public class BookingService {
         String bookingCode = "BK" + now.format(DateTimeFormatter.ofPattern("yyMMdd"))
                 + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
 
-        // 6. Tạo Entity
         Booking booking = new Booking();
         booking.setBookingCode(bookingCode);
         booking.setScheduledAt(request.getScheduledAt());
@@ -112,12 +124,12 @@ public class BookingService {
 
         booking.setBookingDetails(details);
 
-        // Lưu xuống DB để có ID
         bookingRepository.save(booking);
         jobScheduler.schedule(
                 holdExpiredAt,
                 () -> this.expiredBooking(booking.getId())
         );
+
         BookingDetailsResponse response = new BookingDetailsResponse();
         response.setId(booking.getId());
         response.setBookingCode(booking.getBookingCode());
@@ -162,15 +174,12 @@ public class BookingService {
                 );
                 System.out.println("✅ Đã kích hoạt gửi mail xác nhận cho Booking: " + booking.getBookingCode());
             } catch (Exception e) {
-                // Log lỗi nhưng không làm roll back giao dịch xác nhận lịch
                 System.err.println("❌ Lỗi khi gọi gửi mail: " + e.getMessage());
             }
         }
-
         return true;
     }
 
-    // Hàm chạy ngầm của JobRunr
     @Transactional
     public void expiredBooking(Long id) {
         Booking booking = bookingRepository.findById(id).orElse(null);
@@ -238,6 +247,7 @@ public class BookingService {
         return true;
     }
 
+    // --- LẤY DANH SÁCH GIỜ TRỐNG ---
     public List<AvailableSlotResponse> getAvailableBookingSlots(int durationInMinutes, LocalDateTime selectedDay) {
         LocalDateTime startOfDayQuery = selectedDay.toLocalDate().atStartOfDay();
         LocalDateTime endOfDayQuery = startOfDayQuery.plusDays(1);
@@ -251,17 +261,17 @@ public class BookingService {
 
         while (!currentTime.isAfter(endOfDay)) {
             LocalDateTime slotEndTime = currentTime.plusMinutes(durationInMinutes);
-            final LocalDateTime currentCheckTime = currentTime;
 
-            long overlapCount = bookings.stream()
-                    .filter(b -> currentCheckTime.isBefore(b.getExpectedEndTime())
-                            && slotEndTime.isAfter(b.getScheduledAt())
-                            && b.getBookingStatus() != BookingStatus.CANCELLED)
-                    .count();
+            // BẢO VỆ NHÂN VIÊN: Nếu giờ kết thúc dự kiến lố qua giờ đóng cửa -> Bỏ qua, không hiển thị nút
+            if (slotEndTime.isAfter(endOfDay)) {
+                currentTime = currentTime.plusMinutes(bookingOptions.getSlotDurationMinutes());
+                continue;
+            }
 
-                if (overlapCount < bookingOptions.getMaxBookingsPerSlot() && currentCheckTime.isAfter(now)) {
+            // GỌI HÀM CHECK THÔNG MINH Ở ĐÂY
+            if (currentTime.isAfter(now) && isSlotAvailable(currentTime, slotEndTime, bookings, null)) {
                 AvailableSlotResponse slot = new AvailableSlotResponse();
-                slot.setStartAt(currentCheckTime);
+                slot.setStartAt(currentTime);
                 slot.setEndAt(slotEndTime);
                 availableSlots.add(slot);
             }
@@ -286,7 +296,6 @@ public class BookingService {
             response.setBookingStatus(b.getBookingStatus().ordinal());
             response.setCreateAt(b.getCreateAt());
 
-            // ======= THÊM LOGIC LẤY THÔNG TIN THANH TOÁN =======
             List<PaymentTransaction> txList = b.getPaymentTransactions();
             if (txList != null && !txList.isEmpty()) {
                 PaymentTransaction latestTx = txList.stream()
@@ -294,8 +303,7 @@ public class BookingService {
                         .findFirst()
                         .orElse(txList.get(txList.size() - 1));
 
-                response
-                        .setPaid(latestTx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS);
+                response.setPaid(latestTx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS);
                 if (latestTx.getPaymentMethod() != null) {
                     response.setPaymentMethod(latestTx.getPaymentMethod().name());
                 }
@@ -354,7 +362,6 @@ public class BookingService {
                                             response.setPaymentMethod(latestTx.getPaymentMethod().name());
                                         }
                                     }, () -> {
-                                        // Hoàn toàn chưa có giao dịch nào
                                         response.setPaid(false);
                                         response.setPaymentMethod(null);
                                     });
@@ -443,7 +450,6 @@ public class BookingService {
             throw new RuntimeException("Không thể cập nhật lịch về thời điểm đã qua.");
         }
 
-        // Chỉ cho phép sửa nếu lịch đang chờ hoặc đã xác nhận
         if (booking.getBookingStatus() == BookingStatus.CANCELLED || booking.getBookingStatus() == BookingStatus.COMPLETED) {
             throw new RuntimeException("Không thể sửa lịch hẹn đã hoàn thành hoặc đã hủy.");
         }
@@ -461,47 +467,41 @@ public class BookingService {
         int totalMinutes = services.stream().mapToInt(com.hutech.coca.model.Service::getDurationInMinutes).sum();
         LocalDateTime expectedEndTime = request.getScheduledAt().plusMinutes(totalMinutes);
 
-        // Kiểm tra xem slot giờ mới có trống không (Phải loại trừ chính ID của booking hiện tại ra)
+        // --- GỌI HÀM KIỂM TRA THÔNG MINH (TRUYỀN ID ĐỂ NGOẠI TRỪ LỊCH ĐANG SỬA) ---
         LocalDateTime startOfDay = request.getScheduledAt().toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
         List<Booking> bookingsInDay = bookingRepository.findByScheduledAtGreaterThanEqualAndScheduledAtLessThanAndIsDeletedFalse(startOfDay, endOfDay);
 
-        long overlapCount = bookingsInDay.stream()
-                .filter(b -> !b.getId().equals(bookingId)) // LOẠI TRỪ CHÍNH NÓ
-                .filter(b -> b.getScheduledAt().isBefore(expectedEndTime)
-                        && b.getExpectedEndTime().isAfter(request.getScheduledAt())
-                        && b.getBookingStatus() != BookingStatus.CANCELLED)
-                .count();
-
-        if (overlapCount >= bookingOptions.getMaxBookingsPerSlot()) {
+        if (!isSlotAvailable(request.getScheduledAt(), expectedEndTime, bookingsInDay, bookingId)) {
             throw new RuntimeException("Khung giờ này đã kín lịch, vui lòng chọn giờ khác.");
         }
 
         double totalPrice = services.stream().mapToDouble(com.hutech.coca.model.Service::getPrice).sum();
 
-        // Cập nhật các thông tin cơ bản
         booking.setPet(pet);
         booking.setScheduledAt(request.getScheduledAt());
         booking.setExpectedEndTime(expectedEndTime);
         booking.setTotalPrice(totalPrice);
         booking.setNotes(request.getNotes());
 
-        // Cập nhật danh sách dịch vụ (Xóa cũ, đắp mới)
-        booking.getBookingDetails().clear(); // Nhờ orphanRemoval=true, dòng này sẽ xóa data trong DB
+        // --- CÁCH SỬA LỖI NHÂN ĐÔI DỊCH VỤ (UPDATE THÔNG MINH) ---
+        List<Long> newServiceIds = services.stream().map(com.hutech.coca.model.Service::getId).toList();
+        booking.getBookingDetails().removeIf(detail -> !newServiceIds.contains(detail.getService().getId()));
 
-        List<BookingDetail> newDetails = services.stream().map(s -> {
-            BookingDetail detail = new BookingDetail();
-            detail.setBooking(booking);
-            detail.setService(s);
-            detail.setPriceAtTime(s.getPrice());
-            return detail;
-        }).collect(Collectors.toList());
+        for (com.hutech.coca.model.Service s : services) {
+            boolean alreadyExists = booking.getBookingDetails().stream()
+                    .anyMatch(detail -> detail.getService().getId().equals(s.getId()));
 
-        booking.getBookingDetails().addAll(newDetails);
+            if (!alreadyExists) {
+                BookingDetail newDetail = new BookingDetail();
+                newDetail.setBooking(booking);
+                newDetail.setService(s);
+                newDetail.setPriceAtTime(s.getPrice());
+                booking.getBookingDetails().add(newDetail);
+            }
+        }
 
         bookingRepository.save(booking);
-
-        // Tái sử dụng hàm getBookingDetail để trả về data mới nhất
         return getBookingDetail(bookingId);
     }
 
@@ -510,10 +510,8 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        // Đánh dấu là đã xóa và set trạng thái thành Hủy
         booking.setDeleted(true);
         booking.setBookingStatus(BookingStatus.CANCELLED);
-
         bookingRepository.save(booking);
         return true;
     }
@@ -522,7 +520,6 @@ public class BookingService {
         Booking booking = bookingRepository.findByBookingCode(bookingCode)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn/lịch hẹn với mã này!"));
 
-        // Gọi lại hàm getBookingDetail(Long id) có sẵn của bạn để tận dụng code map ra DTO
         return getBookingDetail(booking.getId());
     }
 
@@ -549,15 +546,12 @@ public class BookingService {
             throw new RuntimeException("Chỉ có thể hoàn thành lịch hẹn đang được tiến hành.");
         }
 
-        // 1. Chốt trạng thái lịch hẹn thành COMPLETED
         booking.setBookingStatus(BookingStatus.COMPLETED);
         bookingRepository.save(booking);
 
-        // 2. Tìm giao dịch hiện tại (Nếu có)
         java.util.Optional<PaymentTransaction> existingTx = paymentTransactionRepository.findTopByBookingIdOrderByUpdatedAtDesc(bookingId);
 
         if (existingTx.isPresent()) {
-            // TRƯỜNG HỢP 1: Khách tự đặt (Đã có giao dịch mồi trước đó) -> Cập nhật thành SUCCESS
             PaymentTransaction tx = existingTx.get();
             if (tx.getPaymentStatus() != PaymentTransactionStatus.SUCCESS) {
                 if (finalPaymentMethod != null) {
@@ -568,7 +562,6 @@ public class BookingService {
                 paymentTransactionRepository.save(tx);
             }
         } else {
-            // TRƯỜNG HỢP 2: Admin đặt hộ (Chưa từng có giao dịch nào) -> TẠO MỚI VÀ CHỐT SUCCESS LUÔN
             PaymentTransaction newTx = new PaymentTransaction();
             newTx.setBooking(booking);
             newTx.setUser(booking.getUser());
@@ -630,15 +623,12 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch hẹn."));
 
-        // Chỉ những đơn đã xác nhận (chuẩn bị làm) thì mới có thể báo vắng mặt
         if (booking.getBookingStatus() != BookingStatus.CONFIRMED) {
             throw new RuntimeException("Chỉ có thể báo vắng mặt khi lịch hẹn đang ở trạng thái 'Đã xác nhận'.");
         }
 
-        // Cập nhật trạng thái thành NO_SHOW (Khách không đến)
         booking.setBookingStatus(BookingStatus.NO_SHOW);
         bookingRepository.save(booking);
-
         return true;
     }
 }
