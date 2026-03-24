@@ -25,14 +25,12 @@ public class PetService {
 
     @Transactional
     public PetResponse createUserPet(Long ownerId, CreatePetRequest dto) {
-        // Kiểm tra User và PetType có tồn tại không
         User user = userRepository.findById(ownerId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         PetType petType = petTypeRepository.findById(dto.getPetTypeId())
                 .orElseThrow(() -> new RuntimeException("Pet Type not found"));
 
-        // Tạo Entity Pet mới
         Pet pet = new Pet();
         pet.setUser(user);
         pet.setPetType(petType);
@@ -40,17 +38,62 @@ public class PetService {
         pet.setAge(dto.getAge());
         pet.setImageUrl(dto.getImageUrl());
 
-        // Lưu vào DB
         petRepository.save(pet);
 
-        // Map sang DTO trả về
         PetResponse response = new PetResponse();
         response.setId(pet.getId());
         response.setName(pet.getName());
         response.setAge(pet.getAge());
         response.setImageUrl(pet.getImageUrl());
+        if (pet.getPetType() != null) {
+            response.setPetTypeId(pet.getPetType().getId());
+        }
 
         return response;
+    }
+
+    @Transactional
+    public PetResponse updateUserPet(Long userId, Long petId, CreatePetRequest dto) {
+        Pet pet = petRepository.findById(petId)
+                .orElseThrow(() -> new RuntimeException("Pet not found"));
+
+        if (pet.getUser() == null || !pet.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Pet does not belong to this user");
+        }
+
+        PetType petType = petTypeRepository.findById(dto.getPetTypeId())
+                .orElseThrow(() -> new RuntimeException("Pet Type not found"));
+
+        pet.setName(dto.getName());
+        pet.setAge(dto.getAge());
+        pet.setImageUrl(dto.getImageUrl());
+        pet.setPetType(petType);
+
+        petRepository.save(pet);
+
+        PetResponse response = new PetResponse();
+        response.setId(pet.getId());
+        response.setName(pet.getName());
+        response.setAge(pet.getAge());
+        response.setImageUrl(pet.getImageUrl());
+        if (pet.getPetType() != null) {
+            response.setPetTypeId(pet.getPetType().getId());
+        }
+
+        return response;
+    }
+
+    @Transactional
+    public void deleteUserPet(Long userId, Long petId) {
+        Pet pet = petRepository.findById(petId)
+                .orElseThrow(() -> new RuntimeException("Pet not found"));
+
+        if (pet.getUser() == null || !pet.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Pet does not belong to this user");
+        }
+
+        // Soft delete via @SQLDelete on Pet entity
+        petRepository.delete(pet);
     }
 
     public PetResponse getPetById(Long petId) {
@@ -62,6 +105,9 @@ public class PetService {
         dto.setName(pet.getName());
         dto.setAge(pet.getAge());
         dto.setImageUrl(pet.getImageUrl());
+        if (pet.getPetType() != null) {
+            dto.setPetTypeId(pet.getPetType().getId());
+        }
 
         return dto;
     }
@@ -81,5 +127,4 @@ public class PetService {
             return dto;
         }).collect(Collectors.toList());
     }
-
 }

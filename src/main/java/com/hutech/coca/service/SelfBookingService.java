@@ -50,8 +50,8 @@ public class SelfBookingService {
         PaymentInitResponse payment = paymentService.initializePayment(
                 booking.getId(),
                 currentUser.getId(),
-            request.getPaymentMethod(),
-            null
+                request.getPaymentMethod(),
+                null
         );
 
         BookingDetailsResponse freshBooking = bookingService.getBookingDetail(booking.getId());
@@ -75,8 +75,13 @@ public class SelfBookingService {
         return bookingService.getBookingDetail(bookingId);
     }
 
-    public List<BookingSummaryResponse> getMyBookings(String authorizationHeader) {
+    // petId = null => lấy toàn bộ booking của user
+    // petId != null => lấy booking theo pet của user
+    public List<BookingSummaryResponse> getMyBookings(String authorizationHeader, Long petId) {
         User currentUser = currentUserService.getCurrentUser(authorizationHeader);
+        if (petId != null) {
+            return bookingService.getUserBookingsByPetId(currentUser.getId(), petId);
+        }
         return bookingService.getUserBookings(currentUser.getId());
     }
 

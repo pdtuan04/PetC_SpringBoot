@@ -249,4 +249,21 @@ public class BookingController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
+    @PostMapping("/{bookingId}/cash-paid")
+    public ResponseEntity<Map<String, Object>> markCashPaid(@PathVariable Long bookingId) {
+        try {
+            bookingService.markCashPaid(bookingId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Đã ghi nhận khách thanh toán tiền mặt.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }

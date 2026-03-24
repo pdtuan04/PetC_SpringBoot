@@ -1,6 +1,8 @@
 package com.hutech.coca.service;
 import com.hutech.coca.common.Roles;
 import com.hutech.coca.dto.UpdateRoleRequest;
+import com.hutech.coca.dto.UpdateProfileRequest;
+import com.hutech.coca.dto.UserProfileResponse;
 import com.hutech.coca.dto.UserSummaryResponse;
 import com.hutech.coca.model.Role;
 import com.hutech.coca.model.User;
@@ -127,5 +129,44 @@ public class UserService implements UserDetailsService {
             return dto;
         }).collect(Collectors.toList());
     }
+    public UserProfileResponse toUserProfile(User user) {
+        UserProfileResponse dto = new UserProfileResponse();
+        dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
+        dto.setEmail(user.getEmail());
+        dto.setPhone(user.getPhone());
+        dto.setRewardPoints(user.getRewardPoints());
+        return dto;
+    }
 
+    @Transactional
+    public UserProfileResponse updateMyProfile(User currentUser, UpdateProfileRequest request) {
+        String normalizedEmail = request.getEmail() == null ? null : request.getEmail().trim();
+        String normalizedPhone = request.getPhone() == null ? null : request.getPhone().trim();
+
+        if (normalizedEmail == null || normalizedEmail.isEmpty()) {
+            throw new RuntimeException("Email không được để trống");
+        }
+
+        if (normalizedPhone == null || normalizedPhone.isEmpty()) {
+            throw new RuntimeException("Số điện thoại không được để trống");
+        }
+
+        userRepository.findByEmail(normalizedEmail)
+                .filter(found -> !found.getId().equals(currentUser.getId()))
+                .ifPresent(found -> {
+                    throw new RuntimeException("Email đã tồn tại!");
+                });
+
+        userRepository.findByPhone(normalizedPhone)
+                .filter(found -> !found.getId().equals(currentUser.getId()))
+                .ifPresent(found -> {
+                    throw new RuntimeException("SDT đã tồn tại!");
+                });
+
+        currentUser.setEmail(normalizedEmail);
+        currentUser.setPhone(normalizedPhone);
+        userRepository.save(currentUser);
+        return toUserProfile(currentUser);
+    }
 }
