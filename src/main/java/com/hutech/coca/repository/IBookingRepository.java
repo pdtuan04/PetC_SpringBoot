@@ -5,10 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
+import org.springframework.data.domain.Pageable;
+import com.hutech.coca.dto.MostBookedServiceResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
 @Repository
 public interface IBookingRepository extends JpaRepository<Booking, Long> {
     // Tìm Booking trong khoảng thời gian (Dùng cho check trùng lịch và xem tuần)
@@ -31,4 +33,13 @@ public interface IBookingRepository extends JpaRepository<Booking, Long> {
            "WHERE bd.service.id = :serviceId AND b.isDeleted = false")
     long countByServiceId(@Param("serviceId") Long serviceId);
     Optional<Booking> findByBookingCode(String bookingCode);
+    // Lấy danh sách dịch vụ được đặt nhiều nhất
+    @Query("SELECT new com.hutech.coca.dto.MostBookedServiceResponse(s.id, s.name, COUNT(bd.id)) " +
+            "FROM BookingDetail bd " +
+            "JOIN bd.service s " +
+            "JOIN bd.booking b " +
+            "WHERE b.isDeleted = false " +
+            "GROUP BY s.id, s.name " +
+            "ORDER BY COUNT(bd.id) DESC")
+    List<MostBookedServiceResponse> findMostBookedServices(Pageable pageable);
 }
