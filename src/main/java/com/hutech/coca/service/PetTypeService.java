@@ -10,6 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
@@ -97,6 +98,25 @@ public class PetTypeService {
         dto.setName(petType.getName());
         dto.setActive(petType.isActive());
         dto.setCreateAt(petType.getCreateAt());
+        return dto;
+    }
+
+    @Transactional
+    public PetTypeResponse createPetType(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new RuntimeException("Tên loại thú cưng là bắt buộc");
+        }
+
+        PetType petType = new PetType();
+        petType.setName(name.trim());
+       petType.setActive(true);
+petType.setDeleted(false);
+
+        PetType saved = petTypeRepository.save(petType);
+
+        PetTypeResponse dto = new PetTypeResponse();
+        dto.setId(saved.getId());
+        dto.setName(saved.getName());
         return dto;
     }
 }

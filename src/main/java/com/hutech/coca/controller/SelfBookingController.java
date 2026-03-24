@@ -61,9 +61,10 @@ public class SelfBookingController {
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getMyBookings(
-            @RequestHeader("Authorization") String authorization) {
+            @RequestHeader("Authorization") String authorization,
+            @RequestParam(required = false) Long petId) {
         try {
-            List<BookingSummaryResponse> data = selfBookingService.getMyBookings(authorization);
+            List<BookingSummaryResponse> data = selfBookingService.getMyBookings(authorization, petId);
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("data", data);

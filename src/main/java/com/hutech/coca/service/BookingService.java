@@ -376,10 +376,49 @@ public class BookingService {
             BookingSummaryResponse response = new BookingSummaryResponse();
             response.setId(b.getId());
             response.setBookingCode(b.getBookingCode());
+            response.setPetId(b.getPet() != null ? b.getPet().getId() : null);
+            response.setPetName(b.getPet() != null ? b.getPet().getName() : null);
+            response.setUserName(b.getUser() != null ? b.getUser().getUsername() : null);
             response.setBookingStatus(b.getBookingStatus().ordinal());
             response.setCreateAt(b.getCreateAt());
             response.setExpectedEndTime(b.getExpectedEndTime());
             response.setScheduledAt(b.getScheduledAt());
+            response.setTotalPrice(b.getTotalPrice());
+            response.setNotes(b.getNotes());
+            List<PaymentTransaction> txList = b.getPaymentTransactions();
+            if (txList != null && !txList.isEmpty()) {
+                PaymentTransaction latestTx = txList.stream()
+                        .filter(tx -> tx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS)
+                        .findFirst()
+                        .orElse(txList.get(txList.size() - 1));
+
+                response.setPaid(latestTx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS);
+                if (latestTx.getPaymentMethod() != null) {
+                    response.setPaymentMethod(latestTx.getPaymentMethod().name());
+                }
+            } else {
+                response.setPaid(false);
+            }
+            return response;
+        }).collect(Collectors.toList());
+    }
+
+    public List<BookingSummaryResponse> getUserBookingsByPetId(Long userId, Long petId) {
+        List<Booking> bookings = bookingRepository.findByUserIdAndPetId(userId, petId);
+        return bookings.stream().map(b -> {
+            BookingSummaryResponse response = new BookingSummaryResponse();
+            response.setId(b.getId());
+            response.setBookingCode(b.getBookingCode());
+            response.setPetId(b.getPet() != null ? b.getPet().getId() : null);
+            response.setPetName(b.getPet() != null ? b.getPet().getName() : null);
+            response.setUserName(b.getUser() != null ? b.getUser().getUsername() : null);
+            response.setBookingStatus(b.getBookingStatus().ordinal());
+            response.setCreateAt(b.getCreateAt());
+            response.setExpectedEndTime(b.getExpectedEndTime());
+            response.setScheduledAt(b.getScheduledAt());
+            response.setTotalPrice(b.getTotalPrice());
+            response.setNotes(b.getNotes());
+
             List<PaymentTransaction> txList = b.getPaymentTransactions();
             if (txList != null && !txList.isEmpty()) {
                 PaymentTransaction latestTx = txList.stream()
@@ -532,6 +571,48 @@ public class BookingService {
             newTx.setTransactionRef("COUNTER_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
             newTx.setPaymentProvider("AT_COUNTER");
             paymentTransactionRepository.save(newTx);
+        }
+
+        return true;
+    }
+
+    @Transactional
+    public boolean markCashPaid(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch hẹn."));
+
+        if (booking.getBookingStatus() == BookingStatus.CANCELLED
+                || booking.getBookingStatus() == BookingStatus.NO_SHOW) {
+            throw new RuntimeException("Không thể ghi nhận thanh toán tiền mặt cho lịch đã hủy/vắng mặt.");
+        }
+
+        java.util.Optional<PaymentTransaction> existingTx =
+                paymentTransactionRepository.findTopByBookingIdOrderByUpdatedAtDesc(bookingId);
+
+        if (existingTx.isPresent()) {
+            PaymentTransaction tx = existingTx.get();
+            tx.setPaymentMethod(PaymentMethod.CASH);
+            tx.setPaymentStatus(PaymentTransactionStatus.SUCCESS);
+            tx.setAmount(booking.getTotalPrice() != null ? booking.getTotalPrice() : 0.0);
+            tx.setPaymentProvider("AT_COUNTER");
+            paymentTransactionRepository.save(tx);
+        } else {
+            PaymentTransaction newTx = new PaymentTransaction();
+            newTx.setBooking(booking);
+            newTx.setUser(booking.getUser());
+            newTx.setPaymentMethod(PaymentMethod.CASH);
+            newTx.setPaymentStatus(PaymentTransactionStatus.SUCCESS);
+            newTx.setAmount(booking.getTotalPrice() != null ? booking.getTotalPrice() : 0.0);
+            newTx.setTransactionRef(
+                    "CASH_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase()
+            );
+            newTx.setPaymentProvider("AT_COUNTER");
+            paymentTransactionRepository.save(newTx);
+        }
+
+        if (booking.getBookingStatus() == BookingStatus.PENDING
+                || booking.getBookingStatus() == BookingStatus.PENDING_PAYMENT) {
+            confirmBookingAfterPayment(bookingId);
         }
 
         return true;

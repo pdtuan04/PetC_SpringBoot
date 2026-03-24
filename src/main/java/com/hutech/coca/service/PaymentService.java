@@ -165,7 +165,7 @@ public class PaymentService {
             tx.setPaymentStatus(PaymentTransactionStatus.INITIATED);
             paymentTransactionRepository.save(tx);
 
-            String payUrl = initializeMomo(tx, booking);
+            String payUrl = initializeMomo(tx, booking, payableAmount);
             response.setPaymentStatus(PaymentTransactionStatus.INITIATED.name());
             response.setPaymentUrl(payUrl);
             response.setMessage("MOMO payment initialized");
@@ -177,7 +177,7 @@ public class PaymentService {
             tx.setPaymentStatus(PaymentTransactionStatus.INITIATED);
             paymentTransactionRepository.save(tx);
 
-            String payUrl = buildVnpayPaymentUrl(tx, booking);
+            String payUrl = buildVnpayPaymentUrl(tx, booking, payableAmount);
             response.setPaymentStatus(PaymentTransactionStatus.INITIATED.name());
             response.setPaymentUrl(payUrl);
             response.setMessage("VNPay payment initialized");
@@ -187,9 +187,9 @@ public class PaymentService {
         throw new RuntimeException("Unsupported payment method");
     }
 
-        public PaymentBookingSummaryResponse getBookingPaymentSummary(Long bookingId, Long userId) {
+    public PaymentBookingSummaryResponse getBookingPaymentSummary(Long bookingId, Long userId) {
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         User bookingOwner = booking.getUser();
         if (bookingOwner == null || !bookingOwner.getId().equals(userId)) {
@@ -197,17 +197,17 @@ public class PaymentService {
         }
 
         PaymentTransaction latest = paymentTransactionRepository
-            .findTopByBookingIdOrderByUpdatedAtDesc(bookingId)
-            .orElse(null);
+                .findTopByBookingIdOrderByUpdatedAtDesc(bookingId)
+                .orElse(null);
 
         boolean hasSuccessfulPayment = paymentTransactionRepository
-            .existsByBookingIdAndPaymentStatus(bookingId, PaymentTransactionStatus.SUCCESS);
+                .existsByBookingIdAndPaymentStatus(bookingId, PaymentTransactionStatus.SUCCESS);
 
         boolean canRetryPayment = !hasSuccessfulPayment
-            && booking.getBookingStatus() != BookingStatus.CANCELLED
-            && booking.getBookingStatus() != BookingStatus.COMPLETED
-            && booking.getBookingStatus() != BookingStatus.IN_PROGRESS
-            && booking.getBookingStatus() != BookingStatus.NO_SHOW;
+                && booking.getBookingStatus() != BookingStatus.CANCELLED
+                && booking.getBookingStatus() != BookingStatus.COMPLETED
+                && booking.getBookingStatus() != BookingStatus.IN_PROGRESS
+                && booking.getBookingStatus() != BookingStatus.NO_SHOW;
 
         PaymentBookingSummaryResponse response = new PaymentBookingSummaryResponse();
         response.setBookingId(bookingId);
@@ -217,7 +217,7 @@ public class PaymentService {
         response.setLatestPaymentMethod(latest == null ? null : latest.getPaymentMethod().name());
         response.setLatestPaymentProvider(latest == null ? null : latest.getPaymentProvider());
         return response;
-        }
+    }
 
     @Transactional
     public BookingDetailsResponse handleMomoWebhook(MomoWebhookRequest request) {
@@ -270,9 +270,9 @@ public class PaymentService {
                 tx.setRawPayload(toSafeRawPayload(request.getRawPayload()));
                 paymentTransactionRepository.save(tx);
                 voucherService.consumeVoucherAmount(
-                    tx.getUser().getId(),
-                    tx.getVoucherCode(),
-                    tx.getVoucherDiscount()
+                        tx.getUser().getId(),
+                        tx.getVoucherCode(),
+                        tx.getVoucherDiscount()
                 );
                 bookingService.confirmBookingAfterPayment(tx.getBooking().getId());
             }
@@ -310,9 +310,9 @@ public class PaymentService {
                 tx.setRawPayload(toSafeRawPayload(params.toString()));
                 paymentTransactionRepository.save(tx);
                 voucherService.consumeVoucherAmount(
-                    tx.getUser().getId(),
-                    tx.getVoucherCode(),
-                    tx.getVoucherDiscount()
+                        tx.getUser().getId(),
+                        tx.getVoucherCode(),
+                        tx.getVoucherDiscount()
                 );
                 bookingService.confirmBookingAfterPayment(tx.getBooking().getId());
             }
@@ -377,9 +377,9 @@ public class PaymentService {
                 tx.setRawPayload(toSafeRawPayload(params.toString()));
                 paymentTransactionRepository.save(tx);
                 voucherService.consumeVoucherAmount(
-                    tx.getUser().getId(),
-                    tx.getVoucherCode(),
-                    tx.getVoucherDiscount()
+                        tx.getUser().getId(),
+                        tx.getVoucherCode(),
+                        tx.getVoucherDiscount()
                 );
                 bookingService.confirmBookingAfterPayment(tx.getBooking().getId());
             }
@@ -393,14 +393,14 @@ public class PaymentService {
         return bookingService.getBookingDetail(tx.getBooking().getId());
     }
 
-    private String initializeMomo(PaymentTransaction tx, Booking booking) {
+    private String initializeMomo(PaymentTransaction tx, Booking booking, double payableAmount) {
         if (isBlank(momoPartnerCode) || isBlank(momoAccessKey) || isBlank(momoSecretKey)) {
             throw new RuntimeException("MoMo credentials are missing");
         }
 
         String requestId = "REQ" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
         String orderId = tx.getTransactionRef();
-        String amount = String.valueOf(Math.round(booking.getTotalPrice()));
+        String amount = String.valueOf(Math.round(payableAmount));
         String orderInfo = "Thanh toan lich hen " + booking.getBookingCode();
         String extraData = "";
 
@@ -460,12 +460,12 @@ public class PaymentService {
         }
     }
 
-    private String buildVnpayPaymentUrl(PaymentTransaction tx, Booking booking) {
+    private String buildVnpayPaymentUrl(PaymentTransaction tx, Booking booking, double payableAmount) {
         if (isBlank(vnpTmnCode) || isBlank(vnpHashSecret)) {
             throw new RuntimeException("VNPay credentials are missing");
         }
 
-        long amount = Math.round(booking.getTotalPrice()) * 100L;
+        long amount = Math.round(payableAmount) * 100L;
         String createDate = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))
                 .format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
 

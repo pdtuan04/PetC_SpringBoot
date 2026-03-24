@@ -67,7 +67,10 @@ public class AuthController {
                             "roles", user.getRoles().stream().map(r -> r.getName()).toList()
                     ));
                 })
-                .orElse(ResponseEntity.status(401).body(Map.of("error", "Sai tài khoản hoặc mật khẩu")));
+                .orElse(ResponseEntity.status(401).body(Map.of(
+                        "error", "Sai tài khoản hoặc mật khẩu",
+                        "message", "Sai tài khoản hoặc mật khẩu"
+                )));
     }
     @PostMapping("/google")
     public ResponseEntity<Map<String, Object>> authenticateGoogleUser(@RequestBody GoogleLoginRequest request) {

@@ -10,9 +10,13 @@ import java.time.LocalDateTime;
 public class BookingSummaryResponse {
     private Long id;
     private String bookingCode;
+    private Long petId;
+    private String petName;
     private String userName;
     private LocalDateTime scheduledAt;
     private LocalDateTime expectedEndTime;
+    private Double totalPrice;
+    private String notes;
     private int bookingStatus;
     private LocalDateTime createAt;
     private boolean isPaid;

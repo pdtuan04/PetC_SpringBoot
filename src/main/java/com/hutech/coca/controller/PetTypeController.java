@@ -19,7 +19,7 @@ public class PetTypeController {
 
     private final PetTypeService petTypeService;
 
-    // API: GET /api/pet-type
+    // GET /api/pet-type
     @GetMapping
     public ResponseEntity<Map<String, Object>> getPetTypes() {
         try {

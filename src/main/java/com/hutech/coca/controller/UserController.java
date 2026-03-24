@@ -1,18 +1,17 @@
 package com.hutech.coca.controller;
+
+import com.hutech.coca.dto.UpdateProfileRequest;
 import com.hutech.coca.dto.UpdateRoleRequest;
+import com.hutech.coca.dto.UserProfileResponse;
 import com.hutech.coca.dto.UserSummaryResponse;
 import com.hutech.coca.model.Role;
-import com.hutech.coca.service.UserService;
 import com.hutech.coca.model.User;
-import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.support.DefaultMessageSourceResolvable;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import com.hutech.coca.service.CurrentUserService;
+import com.hutech.coca.service.UserService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,24 +24,25 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "*")
 public class UserController {
     private final UserService userService;
+    private final CurrentUserService currentUserService;
+
     @GetMapping("/search")
     public ResponseEntity<Map<String, Object>> searchUserByEmail(@RequestParam String email) {
         try {
             UserSummaryResponse result = userService.getUserByEmail(email);
-
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Tìm thấy khách hàng");
             response.put("data", result);
-
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", e.getMessage());
-            return ResponseEntity.status(404).body(response); // Trả về 404 nếu không thấy
+            return ResponseEntity.status(404).body(response);
         }
     }
+
     @GetMapping("/roles")
     public ResponseEntity<Map<String, Object>> getAllRoles() {
         try {
@@ -59,13 +59,49 @@ public class UserController {
         }
     }
 
-    // API 2: Xem chi tiết 1 User (kèm theo các quyền họ ĐANG CÓ)
+    @GetMapping("/me")
+    public ResponseEntity<Map<String, Object>> getMyProfile(
+            @RequestHeader("Authorization") String authorization) {
+        try {
+            UserProfileResponse result = userService.toUserProfile(currentUserService.getCurrentUser(authorization));
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", result);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<Map<String, Object>> updateMyProfile(
+            @RequestHeader("Authorization") String authorization,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        try {
+            UserProfileResponse result = userService.updateMyProfile(
+                    currentUserService.getCurrentUser(authorization),
+                    request
+            );
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Cập nhật hồ sơ thành công");
+            response.put("data", result);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
     @GetMapping("/{userId}")
     public ResponseEntity<Map<String, Object>> getUserDetails(@PathVariable Long userId) {
         try {
             User user = userService.getUserById(userId);
-
-            // Ép kiểu danh sách Role thành danh sách ID để Frontend dễ check (VD: [1, 2])
             List<Long> currentRoleIds = user.getRoles().stream()
                     .map(Role::getId)
                     .collect(Collectors.toList());
@@ -74,7 +110,7 @@ public class UserController {
             data.put("id", user.getId());
             data.put("username", user.getUsername());
             data.put("email", user.getEmail());
-            data.put("currentRoleIds", currentRoleIds); // Trả về cho Frontend tick sẵn checkbox
+            data.put("currentRoleIds", currentRoleIds);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -88,14 +124,12 @@ public class UserController {
         }
     }
 
-    // API 3: Lưu các quyền mới cho User
     @PutMapping("/{userId}/roles")
     public ResponseEntity<Map<String, Object>> updateUserRoles(
             @PathVariable Long userId,
             @RequestBody UpdateRoleRequest request) {
         try {
             userService.updateUserRoles(userId, request);
-
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Đã cập nhật quyền thành công!");
@@ -107,12 +141,11 @@ public class UserController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAllUsers() {
         try {
-            // Gọi qua Service
             List<UserSummaryResponse> users = userService.getAllUsers();
-
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("data", users);
