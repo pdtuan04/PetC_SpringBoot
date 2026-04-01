@@ -43,6 +43,31 @@ public class UserController {
         }
     }
 
+    @GetMapping("/search-by-username")
+    public ResponseEntity<Map<String, Object>> searchUserByUsername(@RequestParam String username) {
+        try {
+            UserSummaryResponse result = userService.getUserByUsername(username);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Tìm thấy người dùng");
+            response.put("data", result);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(404).body(response);
+        }
+    }
+
+    @GetMapping("/suggest-username")
+    public ResponseEntity<Map<String, Object>> suggestUsersByUsername(@RequestParam String keyword) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", userService.searchUsersByUsername(keyword));
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/roles")
     public ResponseEntity<Map<String, Object>> getAllRoles() {
         try {
