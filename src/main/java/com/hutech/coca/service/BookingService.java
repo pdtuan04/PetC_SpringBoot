@@ -281,6 +281,32 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
+    public List<BookingSummaryResponse> getBookingsByPetId(Long petId) {
+        return bookingRepository.findByPetId(petId).stream().map(b -> {
+            BookingSummaryResponse response = new BookingSummaryResponse();
+            response.setId(b.getId());
+            response.setBookingCode(b.getBookingCode());
+            response.setUserName(b.getUser() != null ? b.getUser().getUsername() : "N/A");
+            response.setScheduledAt(b.getScheduledAt());
+            response.setExpectedEndTime(b.getExpectedEndTime());
+            response.setBookingStatus(b.getBookingStatus().ordinal());
+            response.setCreateAt(b.getCreateAt());
+            response.setTotalPrice(b.getTotalPrice());
+            safeFillPetInfo(response, b);
+            List<PaymentTransaction> txList = b.getPaymentTransactions();
+            if (txList != null && !txList.isEmpty()) {
+                PaymentTransaction latestTx = txList.stream()
+                        .filter(tx -> tx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS)
+                        .findFirst().orElse(txList.get(txList.size() - 1));
+                response.setPaid(latestTx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS);
+            } else {
+                response.setPaid(false);
+            }
+            return response;
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<BookingSummaryResponse> getAllBookings() {
         List<Booking> bookings = bookingRepository.findAll().stream()
                 .filter(b -> !b.isDeleted())

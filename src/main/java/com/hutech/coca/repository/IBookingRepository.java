@@ -22,6 +22,8 @@ public interface IBookingRepository extends JpaRepository<Booking, Long> {
     // Lấy danh sách Booking của 1 User theo Pet
     List<Booking> findByUserIdAndPetId(Long userId, Long petId);
 
+    List<Booking> findByPetId(Long petId);
+
     @Query("SELECT b FROM Booking b " +
             "JOIN FETCH b.user " +
             "LEFT JOIN FETCH b.pet " +
