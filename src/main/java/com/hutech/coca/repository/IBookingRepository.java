@@ -24,11 +24,14 @@ public interface IBookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT b FROM Booking b " +
             "JOIN FETCH b.user " +
-            "JOIN FETCH b.pet " +
+            "LEFT JOIN FETCH b.pet " +
             "LEFT JOIN FETCH b.bookingDetails bd " +
             "LEFT JOIN FETCH bd.service " +
             "WHERE b.id = :id AND b.isDeleted = false")
     Optional<Booking> getBookingDetails(@Param("id") Long id);
+
+    @Query(value = "SELECT pet_id FROM bookings WHERE id = :bookingId", nativeQuery = true)
+    Long findPetIdByBookingId(@Param("bookingId") Long bookingId);
 
     // Đếm số booking có sử dụng service (qua BookingDetail)
     @Query("SELECT COUNT(DISTINCT b) FROM Booking b " +

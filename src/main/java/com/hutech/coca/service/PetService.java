@@ -112,6 +112,22 @@ public class PetService {
         return dto;
     }
 
+    public List<PetResponse> getAllPets() {
+        return petRepository.findByIsDeletedFalse().stream().map(p -> {
+            PetResponse dto = new PetResponse();
+            dto.setId(p.getId());
+            dto.setName(p.getName());
+            dto.setAge(p.getAge());
+            dto.setImageUrl(p.getImageUrl());
+            if (p.getPetType() != null) dto.setPetTypeId(p.getPetType().getId());
+            if (p.getUser() != null) {
+                dto.setUserId(p.getUser().getId());
+                dto.setUsername(p.getUser().getUsername());
+            }
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
     public List<PetResponse> getUserPets(Long ownerId) {
         List<Pet> pets = petRepository.findByUserIdAndIsDeletedFalse(ownerId);
 

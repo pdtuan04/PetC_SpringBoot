@@ -60,6 +60,28 @@ public class UserService implements UserDetailsService {
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
+    public UserSummaryResponse getUserByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username này"));
+        UserSummaryResponse dto = new UserSummaryResponse();
+        dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
+        dto.setPhone(user.getPhone());
+        dto.setEmail(user.getEmail());
+        return dto;
+    }
+
+    public List<UserSummaryResponse> searchUsersByUsername(String keyword) {
+        return userRepository.findByUsernameContainingIgnoreCase(keyword).stream()
+                .map(user -> {
+                    UserSummaryResponse dto = new UserSummaryResponse();
+                    dto.setId(user.getId());
+                    dto.setUsername(user.getUsername());
+                    dto.setPhone(user.getPhone());
+                    dto.setEmail(user.getEmail());
+                    return dto;
+                }).collect(Collectors.toList());
+    }
     public UserSummaryResponse getUserByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với email này"));

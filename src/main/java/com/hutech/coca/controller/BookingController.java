@@ -121,6 +121,14 @@ public class BookingController {
         List<BookingSummaryResponse> bookings = bookingService.getAllBookingsInWeek(startDate.atStartOfDay());
         return ResponseEntity.ok(bookings);
     }
+
+    @GetMapping("/all")
+    public ResponseEntity<Map<String, Object>> getAllBookings() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", bookingService.getAllBookings());
+        return ResponseEntity.ok(response);
+    }
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getBookingById(@PathVariable Long id) {
         Map<String, Object> response = new HashMap<>();

@@ -19,6 +19,14 @@ public class PetController {
 
     private final PetService petService;
 
+    @GetMapping("/all")
+    public ResponseEntity<Map<String, Object>> getAllPets() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", petService.getAllPets());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/user/{userId}")
     public ResponseEntity<Map<String, Object>> getPetsByUserId(@PathVariable Long userId) {
         try {

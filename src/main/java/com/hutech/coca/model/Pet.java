@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
 
 @Setter
 @Getter
@@ -15,7 +14,7 @@ import org.hibernate.annotations.SQLRestriction;
 @Entity
 @Table(name = "pets")
 @SQLDelete(sql = "UPDATE pets SET is_deleted = true WHERE id = ?")
-@SQLRestriction("is_deleted = false")
+// Bỏ @SQLRestriction để Hibernate có thể load pet từ booking kể cả khi đã xóa
 public class Pet {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -9,10 +9,10 @@ import java.util.*;
 
 @Component
 public class JwtUtils {
-    @Value("${JWT_SECRET}")
+    @Value("${JWT_SECRET:mySecretKey123456789012345678901234567890}")
     private String jwtSecret;
 
-    @Value("${JWT_EXPIRATION}")
+    @Value("${JWT_EXPIRATION:86400000}")
     private long jwtExpiration;
 
     public String generateToken(String username, Collection<? extends GrantedAuthority> authorities) {

@@ -280,6 +280,40 @@ public class BookingService {
         return availableSlots;
     }
 
+    @Transactional(readOnly = true)
+    public List<BookingSummaryResponse> getAllBookings() {
+        List<Booking> bookings = bookingRepository.findAll().stream()
+                .filter(b -> !b.isDeleted())
+                .collect(Collectors.toList());
+
+        return bookings.stream().map(b -> {
+            BookingSummaryResponse response = new BookingSummaryResponse();
+            response.setId(b.getId());
+            response.setBookingCode(b.getBookingCode());
+            response.setUserName(b.getUser() != null ? b.getUser().getUsername() : "N/A");
+            response.setScheduledAt(b.getScheduledAt());
+            response.setExpectedEndTime(b.getExpectedEndTime());
+            response.setBookingStatus(b.getBookingStatus().ordinal());
+            response.setCreateAt(b.getCreateAt());
+            safeFillPetInfo(response, b);
+
+            List<PaymentTransaction> txList = b.getPaymentTransactions();
+            if (txList != null && !txList.isEmpty()) {
+                PaymentTransaction latestTx = txList.stream()
+                        .filter(tx -> tx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS)
+                        .findFirst()
+                        .orElse(txList.get(txList.size() - 1));
+                response.setPaid(latestTx.getPaymentStatus() == PaymentTransactionStatus.SUCCESS);
+                if (latestTx.getPaymentMethod() != null) {
+                    response.setPaymentMethod(latestTx.getPaymentMethod().name());
+                }
+            } else {
+                response.setPaid(false);
+            }
+            return response;
+        }).collect(Collectors.toList());
+    }
+
     public List<BookingSummaryResponse> getAllBookingsInWeek(LocalDateTime startTime) {
         LocalDateTime start = startTime.toLocalDate().atStartOfDay();
         LocalDateTime end = start.plusDays(7);
@@ -332,10 +366,16 @@ public class BookingService {
             response.setUserName(booking.getUser().getUsername());
         }
 
-        if (booking.getPet() != null) {
-            response.setPetId(booking.getPet().getId());
-            response.setPetName(booking.getPet().getName());
-        }
+        // Lấy pet an toàn - bỏ qua SQLRestriction
+        try {
+            Long petId = bookingRepository.findPetIdByBookingId(booking.getId());
+            if (petId != null) {
+                petRepository.findByIdIgnoreDeleted(petId).ifPresent(p -> {
+                    response.setPetId(p.getId());
+                    response.setPetName(p.getName());
+                });
+            }
+        } catch (Exception ignored) {}
         if (booking.getBookingDetails() != null) {
             response.setServices(booking.getBookingDetails().stream().map(bd -> {
                 ServiceInBookingResponse sRes = new ServiceInBookingResponse();
@@ -370,14 +410,25 @@ public class BookingService {
         return response;
     }
 
+    private void safeFillPetInfo(BookingSummaryResponse response, Booking b) {
+        try {
+            Long petId = bookingRepository.findPetIdByBookingId(b.getId());
+            if (petId != null) {
+                petRepository.findByIdIgnoreDeleted(petId).ifPresent(p -> {
+                    response.setPetId(p.getId());
+                    response.setPetName(p.getName());
+                });
+            }
+        } catch (Exception ignored) {}
+    }
+
     public List<BookingSummaryResponse> getUserBookings(Long userId) {
         List<Booking> bookings = bookingRepository.findByUserId(userId);
         return bookings.stream().map(b -> {
             BookingSummaryResponse response = new BookingSummaryResponse();
             response.setId(b.getId());
             response.setBookingCode(b.getBookingCode());
-            response.setPetId(b.getPet() != null ? b.getPet().getId() : null);
-            response.setPetName(b.getPet() != null ? b.getPet().getName() : null);
+            safeFillPetInfo(response, b);
             response.setUserName(b.getUser() != null ? b.getUser().getUsername() : null);
             response.setBookingStatus(b.getBookingStatus().ordinal());
             response.setCreateAt(b.getCreateAt());
@@ -409,8 +460,7 @@ public class BookingService {
             BookingSummaryResponse response = new BookingSummaryResponse();
             response.setId(b.getId());
             response.setBookingCode(b.getBookingCode());
-            response.setPetId(b.getPet() != null ? b.getPet().getId() : null);
-            response.setPetName(b.getPet() != null ? b.getPet().getName() : null);
+            safeFillPetInfo(response, b);
             response.setUserName(b.getUser() != null ? b.getUser().getUsername() : null);
             response.setBookingStatus(b.getBookingStatus().ordinal());
             response.setCreateAt(b.getCreateAt());

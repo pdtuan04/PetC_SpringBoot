@@ -11,4 +11,6 @@ public class PetResponse {
     private int age;
     private String imageUrl;
     private Long petTypeId;
+    private Long userId;
+    private String username;
 }
