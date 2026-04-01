@@ -3,6 +3,7 @@ package com.hutech.coca.service;
 import com.hutech.coca.dto.MostBookedServiceResponse;
 import com.hutech.coca.repository.IBookingRepository;
 import com.lowagie.text.*;
+import com.lowagie.text.pdf.BaseFont;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
@@ -48,10 +49,26 @@ public class StatisticService {
             PdfWriter.getInstance(document, baos);
 
             document.open();
-            Font fontTitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD);
-            fontTitle.setSize(18);
+            
+            // Khởi tạo font hỗ trợ tiếng Việt Unicode
+            Font fontTitle;
+            Font fontHeader;
+            Font fontData;
+            try {
+                // Lấy font Arial mặc định trên Windows
+                String fontPath = "C:\\Windows\\Fonts\\arial.ttf";
+                BaseFont bf = BaseFont.createFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                fontTitle = new Font(bf, 18, Font.BOLD);
+                fontHeader = new Font(bf, 12, Font.BOLD);
+                fontData = new Font(bf, 12, Font.NORMAL);
+            } catch (Exception ex) {
+                // Fallback nếu không có font Arial (nếu chạy trên OS khác)
+                fontTitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+                fontHeader = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
+                fontData = FontFactory.getFont(FontFactory.HELVETICA, 12);
+            }
 
-            Paragraph title = new Paragraph("Most Booked Services Statistics", fontTitle);
+            Paragraph title = new Paragraph("Thống kê Dịch vụ Nổi bật", fontTitle);
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
             document.add(new Paragraph(" ")); // empty line
@@ -62,10 +79,10 @@ public class StatisticService {
             table.setSpacingBefore(10);
 
             // Table Header
-            writePdfTableHeader(table);
+            writePdfTableHeader(table, fontHeader);
 
             // Table Data
-            writePdfTableData(table, stats);
+            writePdfTableData(table, stats, fontData);
 
             document.add(table);
             document.close();
@@ -76,23 +93,21 @@ public class StatisticService {
         }
     }
 
-    private void writePdfTableHeader(PdfPTable table) {
+    private void writePdfTableHeader(PdfPTable table, Font font) {
         PdfPCell cell = new PdfPCell();
         cell.setPadding(5);
-        Font font = FontFactory.getFont(FontFactory.HELVETICA_BOLD);
 
-        cell.setPhrase(new Phrase("Service ID", font));
+        cell.setPhrase(new Phrase("Mã Dịch Vụ", font));
         table.addCell(cell);
 
-        cell.setPhrase(new Phrase("Service Name", font));
+        cell.setPhrase(new Phrase("Tên Dịch Vụ", font));
         table.addCell(cell);
 
-        cell.setPhrase(new Phrase("Booking Count", font));
+        cell.setPhrase(new Phrase("Số Lượng Đặt", font));
         table.addCell(cell);
     }
 
-    private void writePdfTableData(PdfPTable table, List<MostBookedServiceResponse> stats) {
-        Font font = FontFactory.getFont(FontFactory.HELVETICA);
+    private void writePdfTableData(PdfPTable table, List<MostBookedServiceResponse> stats, Font font) {
         for (MostBookedServiceResponse stat : stats) {
             table.addCell(new Phrase(String.valueOf(stat.getServiceId()), font));
             table.addCell(new Phrase(stat.getServiceName() != null ? stat.getServiceName() : "", font));

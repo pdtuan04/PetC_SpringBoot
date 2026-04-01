@@ -13,6 +13,10 @@ public class PetTypeRequest {
     @NotBlank(message = "Tên loại thú cưng là bắt buộc")
     private String name;
 
+    private String description;
+
+    private String image;
+
     @JsonProperty("isActive")
     private boolean isActive = true;
 }
