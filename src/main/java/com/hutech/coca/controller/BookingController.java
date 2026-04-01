@@ -129,6 +129,14 @@ public class BookingController {
         response.put("data", bookingService.getAllBookings());
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/by-pet/{petId}")
+    public ResponseEntity<Map<String, Object>> getBookingsByPetId(@PathVariable Long petId) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", bookingService.getBookingsByPetId(petId));
+        return ResponseEntity.ok(response);
+    }
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getBookingById(@PathVariable Long id) {
         Map<String, Object> response = new HashMap<>();
