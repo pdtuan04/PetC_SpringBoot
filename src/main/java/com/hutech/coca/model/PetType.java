@@ -26,6 +26,11 @@ public class PetType {
     @NotBlank(message = "Tên loại thú cưng là bắt buộc")
     private String name;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    private String image;
+
     private boolean isActive = true;
 
     @Column(name = "is_deleted")

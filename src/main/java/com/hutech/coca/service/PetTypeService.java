@@ -54,6 +54,8 @@ public class PetTypeService {
     public PetTypeResponse createPetType(PetTypeRequest request) {
         PetType petType = new PetType();
         petType.setName(request.getName());
+        petType.setDescription(request.getDescription());
+        petType.setImage(request.getImage());
         petType.setActive(request.isActive());
         petType = petTypeRepository.save(petType);
         return mapToResponse(petType);
@@ -63,6 +65,8 @@ public class PetTypeService {
         PetType petType = petTypeRepository.findById(request.getId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy loại thú cưng"));
         petType.setName(request.getName());
+        petType.setDescription(request.getDescription());
+        petType.setImage(request.getImage());
         petType.setActive(request.isActive());
         petType = petTypeRepository.save(petType);
         return mapToResponse(petType);
@@ -96,6 +100,8 @@ public class PetTypeService {
         PetTypeResponse dto = new PetTypeResponse();
         dto.setId(petType.getId());
         dto.setName(petType.getName());
+        dto.setDescription(petType.getDescription());
+        dto.setImage(petType.getImage());
         dto.setActive(petType.isActive());
         dto.setCreateAt(petType.getCreateAt());
         return dto;
